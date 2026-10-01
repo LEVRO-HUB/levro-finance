@@ -1,10 +1,11 @@
 import { useState } from 'react'
-import { Plus, Pencil, UserX, UserCheck, Users as UsersIcon } from 'lucide-react'
+import { Plus, Users as UsersIcon } from 'lucide-react'
 import { useSupabaseTable } from '../hooks/useSupabaseTable'
 import { Button } from '../components/ui/Button'
 import { Modal } from '../components/ui/Modal'
 import { ConfirmDialog } from '../components/ui/ConfirmDialog'
 import { StatusBadge } from '../components/ui/StatusBadge'
+import { KebabMenu } from '../components/ui/KebabMenu'
 import { EmptyState } from '../components/ui/EmptyState'
 import { Table, Td } from '../components/ui/Table'
 import { FormField, TextInput, Select, TextArea } from '../components/ui/FormField'
@@ -80,14 +81,14 @@ export function Members() {
               <Td>{formatDate(m.joining_date) || '—'}</Td>
               <Td><StatusBadge status={m.is_active ? 'Active' : 'Cancelled'} /></Td>
               <Td>
-                <div className="flex items-center gap-1">
-                  <button onClick={() => openEdit(m)} className="flex h-7 w-7 items-center justify-center rounded-full text-slate-400 hover:bg-slate-100"><Pencil size={13} /></button>
-                  {m.is_active ? (
-                    <button onClick={() => setDeactivateTarget(m)} className="flex h-7 w-7 items-center justify-center rounded-full text-slate-400 hover:bg-slate-100" title="Deactivate"><UserX size={13} /></button>
-                  ) : (
-                    <button onClick={() => update(m.id, { is_active: true })} className="flex h-7 w-7 items-center justify-center rounded-full text-slate-400 hover:bg-slate-100" title="Reactivate"><UserCheck size={13} /></button>
-                  )}
-                </div>
+                <KebabMenu
+                  items={[
+                    { label: 'Edit', onClick: () => openEdit(m) },
+                    m.is_active
+                      ? { label: 'Deactivate', onClick: () => setDeactivateTarget(m), danger: true }
+                      : { label: 'Reactivate', onClick: () => update(m.id, { is_active: true }) },
+                  ]}
+                />
               </Td>
             </tr>
           ))}

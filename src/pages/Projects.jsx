@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Plus, Search, Pencil, Trash2 } from 'lucide-react'
+import { Plus, Search, Pencil, Trash2, Briefcase } from 'lucide-react'
 import { useSupabaseTable } from '../hooks/useSupabaseTable'
 import { Button } from '../components/ui/Button'
 import { Modal } from '../components/ui/Modal'
@@ -11,7 +11,6 @@ import { FormField, TextInput, Select, TextArea } from '../components/ui/FormFie
 import { useToast, describeError } from '../components/ui/Toast'
 import { formatCurrency, todayISO } from '../lib/format'
 import { projectFinancials } from '../lib/finance'
-import { Briefcase } from 'lucide-react'
 
 const STATUSES = ['Active', 'Completed', 'On Hold', 'Cancelled']
 const emptyForm = {
@@ -106,33 +105,41 @@ export function Projects() {
       ) : rows.length === 0 ? (
         <EmptyState icon={Briefcase} title="No projects yet" description="Create your first project to start tracking its finances." />
       ) : (
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+        <div className="space-y-3">
           {rows.map((p) => {
             const pct = p.f.contractValue > 0 ? Math.min((p.f.received / p.f.contractValue) * 100, 100) : 0
             return (
               <div key={p.id} className="rounded-xl border border-slate-200 bg-white p-4">
-                <div className="mb-2 flex items-start justify-between gap-2">
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-semibold text-slate-900">{p.name}</p>
-                    {p.client_name && <p className="truncate text-xs text-slate-400">{p.client_name}</p>}
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex min-w-0 items-start gap-3">
+                    <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
+                      <Briefcase size={18} />
+                    </div>
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="truncate text-sm font-semibold text-slate-900">{p.name}</p>
+                        <StatusBadge status={p.status} />
+                      </div>
+                      <p className="mt-0.5 truncate text-xs text-slate-400">
+                        {p.client_name && `Client: ${p.client_name}`}{p.client_name && p.project_number && ' · '}{p.project_number && `Project No: ${p.project_number}`}
+                      </p>
+                    </div>
                   </div>
                   <div className="flex flex-shrink-0 items-center gap-1">
-                    <StatusBadge status={p.status} />
+                    <Link to={`/projects/${p.id}`}><Button variant="secondary" className="text-xs">View Project</Button></Link>
+                    <button onClick={() => openEdit(p)} aria-label="Edit" className="flex h-9 w-9 items-center justify-center rounded-full text-slate-400 hover:bg-slate-100 hover:text-slate-600"><Pencil size={15} /></button>
+                    <button onClick={() => setDeleteId(p.id)} aria-label="Delete" className="flex h-9 w-9 items-center justify-center rounded-full text-slate-400 hover:bg-red-50 hover:text-red-500"><Trash2 size={15} /></button>
                   </div>
                 </div>
-                {p.project_number && <p className="mb-2 text-xs text-slate-400">Project No: {p.project_number}</p>}
-                <div className="mb-3 grid grid-cols-3 gap-2 text-xs">
-                  <div><p className="text-slate-400">Contract</p><p className="font-medium tabular-nums text-slate-700">{formatCurrency(p.f.contractValue)}</p></div>
-                  <div><p className="text-slate-400">Received</p><p className="font-medium tabular-nums text-emerald-600">{formatCurrency(p.f.received)}</p></div>
-                  <div><p className="text-slate-400">Expenses</p><p className="font-medium tabular-nums text-slate-700">{formatCurrency(p.f.projectCosts)}</p></div>
+
+                <div className="mt-3 grid grid-cols-3 gap-3 border-t border-slate-100 pt-3 text-sm">
+                  <div><p className="text-xs text-slate-400">Contract Value</p><p className="font-medium tabular-nums text-slate-900">{formatCurrency(p.f.contractValue)}</p></div>
+                  <div><p className="text-xs text-slate-400">Received</p><p className="font-medium tabular-nums text-emerald-600">{formatCurrency(p.f.received)}</p></div>
+                  <div><p className="text-xs text-slate-400">Outstanding</p><p className="font-medium tabular-nums text-amber-600">{formatCurrency(p.f.outstanding)}</p></div>
                 </div>
-                <div className="h-1.5 w-full rounded-full bg-slate-100"><div className="h-1.5 rounded-full bg-blue-600" style={{ width: `${Math.max(pct, pct > 0 ? 4 : 0)}%` }} /></div>
-                <div className="mt-3 flex items-center justify-between">
-                  <Link to={`/projects/${p.id}`} className="text-xs font-medium text-blue-600 hover:underline">View Project →</Link>
-                  <div className="flex items-center gap-1">
-                    <button onClick={() => openEdit(p)} aria-label="Edit" className="flex h-8 w-8 items-center justify-center rounded-full text-slate-400 hover:bg-slate-100 hover:text-slate-600"><Pencil size={14} /></button>
-                    <button onClick={() => setDeleteId(p.id)} aria-label="Delete" className="flex h-8 w-8 items-center justify-center rounded-full text-slate-400 hover:bg-red-50 hover:text-red-500"><Trash2 size={14} /></button>
-                  </div>
+
+                <div className="mt-3">
+                  <div className="h-1.5 w-full rounded-full bg-slate-100"><div className="h-1.5 rounded-full bg-blue-600" style={{ width: `${Math.max(pct, pct > 0 ? 4 : 0)}%` }} /></div>
                 </div>
               </div>
             )

@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
-import { ArrowLeft, Plus, Pencil, Trash2, FileText, Upload, Download } from 'lucide-react'
+import { ArrowLeft, Plus, Pencil, Trash2, FileText, Upload, Download, Eye } from 'lucide-react'
 import { useSupabaseTable } from '../hooks/useSupabaseTable'
 import { Button } from '../components/ui/Button'
 import { Modal } from '../components/ui/Modal'
@@ -14,13 +14,10 @@ import { formatCurrency, formatDate, todayISO } from '../lib/format'
 import { projectFinancials, invoiceStatus } from '../lib/finance'
 import { supabase } from '../lib/supabaseClient'
 
-const TABS = ['Overview', 'Expenses', 'Invoices', 'Documents']
+const TABS = ['Overview', 'Transactions', 'Expenses', 'Invoices', 'Documents', 'Payments']
 const DOC_CATEGORIES = [
-  { id: 'master_agreement', label: 'Master Agreement' },
-  { id: 'quotation', label: 'Quotation' },
-  { id: 'proposal', label: 'Proposal' },
-  { id: 'requirements', label: 'Requirements' },
-  { id: 'other', label: 'Other' },
+  { id: 'master_agreement', label: 'Master Agreement' }, { id: 'quotation', label: 'Quotation' },
+  { id: 'proposal', label: 'Proposal' }, { id: 'requirements', label: 'Requirements' }, { id: 'other', label: 'Other' },
 ]
 
 export function ProjectDetail() {
@@ -42,6 +39,21 @@ export function ProjectDetail() {
     [project, expenses.data, invoices.data, invoicePayments.data],
   )
   const projectDocs = useMemo(() => documents.data.filter((d) => d.project_id === id && d.is_current), [documents.data, id])
+  const pct = f && f.contractValue > 0 ? Math.min((f.received / f.contractValue) * 100, 100) : 0
+
+  const projectPayments = useMemo(() => {
+    const invIds = new Set((f?.projectInvoices ?? []).map((i) => i.id))
+    const invById = new Map((f?.projectInvoices ?? []).map((i) => [i.id, i]))
+    return invoicePayments.data.filter((p) => invIds.has(p.invoice_id)).map((p) => ({ ...p, invoice: invById.get(p.invoice_id) })).sort((a, b) => (b.paid_date > a.paid_date ? 1 : -1))
+  }, [invoicePayments.data, f])
+
+  const projectTransactions = useMemo(() => {
+    const rows = [
+      ...projectPayments.map((p) => ({ id: `ip-${p.id}`, date: p.paid_date, type: 'Income', desc: `Payment — ${p.invoice?.invoice_number ?? ''}`, amount: p.amount, direction: 1 })),
+      ...(f?.projectExpenses ?? []).map((e) => ({ id: `ex-${e.id}`, date: e.date, type: e.paid_by_member_id ? 'Contribution' : 'Expense', desc: e.title || e.description || e.category, amount: e.amount, direction: e.paid_by_member_id ? 0 : -1 })),
+    ]
+    return rows.filter((r) => r.date).sort((a, b) => (b.date > a.date ? 1 : -1))
+  }, [projectPayments, f])
 
   // ---- Invoice modal ----
   const [invModalOpen, setInvModalOpen] = useState(false)
@@ -84,7 +96,7 @@ export function ProjectDetail() {
   }
 
   // ---- Payment modal ----
-  const [payModal, setPayModal] = useState(null) // invoice row
+  const [payModal, setPayModal] = useState(null)
   const [payForm, setPayForm] = useState({ amount: '', paid_date: todayISO(), method: '' })
   const [savingPay, setSavingPay] = useState(false)
 
@@ -130,7 +142,7 @@ export function ProjectDetail() {
       setSavingDoc(false)
     }
   }
-  async function downloadDoc(doc) {
+  async function viewDoc(doc) {
     const { data, error: err } = await supabase.storage.from('documents').createSignedUrl(doc.storage_path, 60)
     if (err) { toast.error(`Could not open this file: ${describeError(err)}`); return }
     window.open(data.signedUrl, '_blank')
@@ -141,64 +153,66 @@ export function ProjectDetail() {
 
   return (
     <div className="space-y-5">
-      <div>
-        <Link to="/projects" className="mb-2 inline-flex items-center gap-1 text-xs text-slate-400 hover:text-slate-600"><ArrowLeft size={13} /> Projects</Link>
-        <div className="flex flex-wrap items-center gap-2">
-          <h1 className="text-xl font-semibold text-slate-900">{project.name}</h1>
-          <StatusBadge status={project.status} />
-        </div>
-        <p className="text-sm text-slate-500">{project.client_name && `Client: ${project.client_name}`} {project.project_number && `· Project No: ${project.project_number}`}</p>
-      </div>
-
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-        {[
-          ['Contract Value', f.contractValue, 'what the client agreed to pay'],
-          ['Invoiced', f.invoiced, 'billed so far, excl. tax'],
-          ['Received', f.received, 'cash actually in hand'],
-          ['Outstanding', f.outstanding, 'still owed by client'],
-          ['Project Profit', f.profit, 'received − costs'],
-        ].map(([label, value, sub]) => (
-          <div key={label} className="rounded-xl border border-slate-200 bg-white p-3">
-            <p className="text-xs font-medium text-slate-500">{label}</p>
-            <p className="mt-1 text-base font-semibold tabular-nums text-slate-900">{formatCurrency(value)}</p>
-            <p className="mt-0.5 text-[11px] text-slate-400">{sub}</p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <Link to="/projects" className="mb-2 inline-flex items-center gap-1 text-xs text-slate-400 hover:text-slate-600"><ArrowLeft size={13} /> Projects / {project.name}</Link>
+          <div className="flex flex-wrap items-center gap-2">
+            <h1 className="text-xl font-semibold text-slate-900">{project.name}</h1>
+            <StatusBadge status={project.status} />
           </div>
-        ))}
+          <p className="text-sm text-slate-500">{project.client_name && `Client: ${project.client_name}`}{project.client_name && project.project_number && ' · '}{project.project_number && `Project No: ${project.project_number}`}</p>
+        </div>
       </div>
 
       <div className="flex gap-1 overflow-x-auto border-b border-slate-200">
         {TABS.map((t) => (
-          <button key={t} onClick={() => setTab(t)} className={`whitespace-nowrap border-b-2 px-3 py-2 text-sm font-medium ${tab === t ? 'border-blue-600 text-blue-700' : 'border-transparent text-slate-500 hover:text-slate-700'}`}>
-            {t}
-          </button>
+          <button key={t} onClick={() => setTab(t)} className={`whitespace-nowrap border-b-2 px-3 py-2 text-sm font-medium ${tab === t ? 'border-blue-600 text-blue-700' : 'border-transparent text-slate-500 hover:text-slate-700'}`}>{t}</button>
         ))}
       </div>
 
       {tab === 'Overview' && (
         <div className="grid gap-4 lg:grid-cols-2">
           <section className="rounded-xl border border-slate-200 bg-white p-4">
-            <h2 className="mb-2 text-sm font-semibold text-slate-700">Project Details</h2>
-            <dl className="space-y-1.5 text-sm">
+            <h2 className="mb-3 text-sm font-semibold text-slate-700">Financial Summary</h2>
+            <dl className="space-y-2 text-sm">
+              {[['Contract Value', f.contractValue], ['Received', f.received], ['Outstanding', f.outstanding], ['Project Expenses', f.projectCosts], ['Project Profit', f.profit]].map(([label, value]) => (
+                <div key={label} className="flex items-center justify-between">
+                  <dt className="text-slate-500">{label}</dt>
+                  <dd className="font-medium tabular-nums text-slate-900">{formatCurrency(value)}</dd>
+                </div>
+              ))}
+            </dl>
+            <div className="mt-4">
+              <div className="h-1.5 w-full rounded-full bg-slate-100"><div className="h-1.5 rounded-full bg-blue-600" style={{ width: `${Math.max(pct, pct > 0 ? 4 : 0)}%` }} /></div>
+              <p className="mt-1 text-right text-xs text-slate-400">{pct.toFixed(0)}% received</p>
+            </div>
+          </section>
+          <section className="rounded-xl border border-slate-200 bg-white p-4">
+            <h2 className="mb-3 text-sm font-semibold text-slate-700">Project Details</h2>
+            <dl className="space-y-2 text-sm">
               <div className="flex justify-between"><dt className="text-slate-500">Start Date</dt><dd>{formatDate(project.start_date) || '—'}</dd></div>
               <div className="flex justify-between"><dt className="text-slate-500">Expected Completion</dt><dd>{formatDate(project.expected_completion) || '—'}</dd></div>
               <div className="flex justify-between"><dt className="text-slate-500">Payment Terms</dt><dd className="text-right">{project.payment_terms || '—'}</dd></div>
             </dl>
-            {project.description && <p className="mt-3 text-sm text-slate-600">{project.description}</p>}
-          </section>
-          <section className="rounded-xl border border-slate-200 bg-white p-4">
-            <h2 className="mb-2 text-sm font-semibold text-slate-700">Recent Expenses</h2>
-            {f.projectExpenses.length === 0 ? <EmptyState title="No expenses yet" /> : (
-              <div className="space-y-1.5">
-                {f.projectExpenses.slice(0, 6).map((e) => (
-                  <div key={e.id} className="flex items-center justify-between text-sm">
-                    <span className="truncate text-slate-700">{e.title || e.description || e.category}</span>
-                    <span className="tabular-nums text-slate-900">{formatCurrency(e.amount)}</span>
-                  </div>
-                ))}
-              </div>
-            )}
+            {project.description && <p className="mt-3 border-t border-slate-100 pt-3 text-sm text-slate-600">{project.description}</p>}
+            {project.notes && <p className="mt-2 text-xs text-slate-400">Notes: {project.notes}</p>}
           </section>
         </div>
+      )}
+
+      {tab === 'Transactions' && (
+        projectTransactions.length === 0 ? <EmptyState title="No transactions yet" /> : (
+          <Table columns={['Date', 'Type', 'Description', 'Amount']}>
+            {projectTransactions.map((t) => (
+              <tr key={t.id}>
+                <Td>{formatDate(t.date)}</Td>
+                <Td>{t.type}</Td>
+                <Td>{t.desc}</Td>
+                <Td className={`tabular-nums ${t.direction > 0 ? 'text-emerald-600' : t.direction < 0 ? 'text-red-500' : 'text-slate-500'}`}>{t.direction > 0 ? '+' : t.direction < 0 ? '-' : ''}{formatCurrency(t.amount)}</Td>
+              </tr>
+            ))}
+          </Table>
+        )
       )}
 
       {tab === 'Expenses' && (
@@ -251,19 +265,39 @@ export function ProjectDetail() {
         <div className="space-y-3">
           <div className="flex justify-end"><Button onClick={() => setDocModalOpen(true)}><Upload size={16} /> Add Document</Button></div>
           {projectDocs.length === 0 ? <EmptyState icon={FileText} title="No documents yet" description="Upload the master agreement, quotation, or other project files." /> : (
-            <div className="grid gap-2 sm:grid-cols-2">
+            <Table columns={['Name', 'Type', 'Version', 'Uploaded On', 'Actions']}>
               {projectDocs.map((d) => (
-                <div key={d.id} className="flex items-center justify-between rounded-xl border border-slate-200 bg-white p-3">
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-medium text-slate-900">{d.file_name}</p>
-                    <p className="text-xs text-slate-400">{DOC_CATEGORIES.find((c) => c.id === d.category)?.label ?? d.category} · v{d.version} · {formatDate(d.uploaded_at?.slice(0, 10))}</p>
-                  </div>
-                  <button onClick={() => downloadDoc(d)} className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full text-slate-400 hover:bg-slate-100 hover:text-slate-600"><Download size={15} /></button>
-                </div>
+                <tr key={d.id}>
+                  <Td className="font-medium text-slate-900">{d.file_name}</Td>
+                  <Td>{DOC_CATEGORIES.find((c) => c.id === d.category)?.label ?? d.category}</Td>
+                  <Td>v{(d.version ?? 1).toFixed(1)}</Td>
+                  <Td>{formatDate(d.uploaded_at?.slice(0, 10))}</Td>
+                  <Td>
+                    <div className="flex items-center gap-1">
+                      <button onClick={() => viewDoc(d)} className="flex h-7 w-7 items-center justify-center rounded-full text-slate-400 hover:bg-slate-100 hover:text-blue-600" title="View"><Eye size={14} /></button>
+                      <button onClick={() => viewDoc(d)} className="flex h-7 w-7 items-center justify-center rounded-full text-slate-400 hover:bg-slate-100 hover:text-blue-600" title="Download"><Download size={14} /></button>
+                    </div>
+                  </Td>
+                </tr>
               ))}
-            </div>
+            </Table>
           )}
         </div>
+      )}
+
+      {tab === 'Payments' && (
+        projectPayments.length === 0 ? <EmptyState title="No payments recorded yet" /> : (
+          <Table columns={['Date', 'Invoice', 'Amount', 'Method']}>
+            {projectPayments.map((p) => (
+              <tr key={p.id}>
+                <Td>{formatDate(p.paid_date)}</Td>
+                <Td>{p.invoice?.invoice_number ?? '—'}</Td>
+                <Td className="tabular-nums text-emerald-600">{formatCurrency(p.amount)}</Td>
+                <Td>{p.method || '—'}</Td>
+              </tr>
+            ))}
+          </Table>
+        )
       )}
 
       {/* Invoice modal */}
@@ -306,12 +340,17 @@ export function ProjectDetail() {
       <Modal open={docModalOpen} onClose={() => setDocModalOpen(false)} title="Add Document">
         <form onSubmit={handleDocSubmit}>
           <FormField label="Type">
-            <select className="w-full h-10 rounded-lg border border-slate-200 bg-white px-3 text-sm" value={docForm.category} onChange={(e) => setDocForm({ ...docForm, category: e.target.value })}>
+            <select className="h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm" value={docForm.category} onChange={(e) => setDocForm({ ...docForm, category: e.target.value })}>
               {DOC_CATEGORIES.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
             </select>
           </FormField>
           <FormField label="File">
-            <input type="file" required onChange={(e) => setDocForm({ ...docForm, file: e.target.files?.[0] ?? null })} className="block w-full text-sm" />
+            <label className="flex h-28 cursor-pointer flex-col items-center justify-center gap-1 rounded-lg border-2 border-dashed border-slate-200 text-center text-xs text-slate-400 hover:border-blue-300 hover:bg-blue-50/30">
+              <Upload size={18} />
+              <span>{docForm.file ? docForm.file.name : 'Click to upload or drag and drop'}</span>
+              <span>PDF, JPG, PNG (Max 5MB)</span>
+              <input type="file" required className="hidden" onChange={(e) => setDocForm({ ...docForm, file: e.target.files?.[0] ?? null })} />
+            </label>
           </FormField>
           <div className="flex justify-end gap-2 pt-2">
             <Button type="button" variant="secondary" onClick={() => setDocModalOpen(false)}>Cancel</Button>

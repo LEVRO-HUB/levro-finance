@@ -83,9 +83,7 @@ export function Transactions() {
           <option value="All">All members</option>
           {members.data.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
         </Select>
-        {(typeFilter !== 'All' || projectFilter !== 'All' || memberFilter !== 'All' || from || to || search) && (
-          <button onClick={() => { setTypeFilter('All'); setProjectFilter('All'); setMemberFilter('All'); setFrom(''); setTo(''); setSearch('') }} className="text-xs font-medium text-blue-600 hover:underline">Clear all</button>
-        )}
+        <button onClick={() => { setTypeFilter('All'); setProjectFilter('All'); setMemberFilter('All'); setFrom(''); setTo(''); setSearch('') }} className="rounded-lg border border-slate-200 bg-white px-3 text-xs font-medium text-slate-600 hover:bg-slate-50">Reset</button>
       </div>
 
       {filtered.length === 0 ? (

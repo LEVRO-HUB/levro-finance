@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Plus, Wallet, Pencil, Trash2 } from 'lucide-react'
+import { Plus, Wallet, Pencil, Trash2, Upload, Paperclip } from 'lucide-react'
 import { useSupabaseTable } from '../hooks/useSupabaseTable'
 import { Button } from '../components/ui/Button'
 import { Modal } from '../components/ui/Modal'
@@ -11,9 +11,10 @@ import { FormField, TextInput, Select, TextArea } from '../components/ui/FormFie
 import { useToast, describeError } from '../components/ui/Toast'
 import { formatCurrency, formatDate, todayISO } from '../lib/format'
 import { sum } from '../lib/finance'
+import { supabase } from '../lib/supabaseClient'
 
 const CATEGORIES = ['Vendor Payment', 'Hosting', 'Office', 'Equipment', 'Software', 'Travel', 'Others']
-const emptyForm = { recipient: '', amount: '', category: CATEGORIES[0], date: todayISO(), payment_method: '', project_id: '', description: '' }
+const emptyForm = { recipient: '', amount: '', category: CATEGORIES[0], date: todayISO(), payment_method: '', project_id: '', description: '', attachment: null }
 
 // Pay Out = company-paid expenses to an external recipient (vendor/payee),
 // shown and filtered separately from internal team member contributions.
@@ -37,7 +38,7 @@ export function PayOut() {
   function openAdd() { setEditing(null); setForm(emptyForm); setModalOpen(true) }
   function openEdit(row) {
     setEditing(row)
-    setForm({ recipient: row.recipient ?? '', amount: row.amount, category: row.category, date: row.date, payment_method: row.payment_method ?? '', project_id: row.project_id ?? '', description: row.description ?? '' })
+    setForm({ recipient: row.recipient ?? '', amount: row.amount, category: row.category, date: row.date, payment_method: row.payment_method ?? '', project_id: row.project_id ?? '', description: row.description ?? '', attachment: null })
     setModalOpen(true)
   }
 
@@ -45,10 +46,18 @@ export function PayOut() {
     e.preventDefault()
     setSaving(true)
     try {
+      let receipt_path = editing?.receipt_path ?? null
+      if (form.attachment) {
+        const path = `payouts/${Date.now()}-${form.attachment.name}`
+        const { error: upErr } = await supabase.storage.from('documents').upload(path, form.attachment)
+        if (upErr) throw upErr
+        receipt_path = path
+      }
       const payload = {
         recipient: form.recipient, amount: Number(form.amount) || 0, category: form.category, date: form.date,
         payment_method: form.payment_method || null, description: form.description, status: 'Paid',
         expense_type: form.project_id ? 'project_expense' : 'company_expense', project_id: form.project_id || null,
+        receipt_path,
       }
       if (editing) await update(editing.id, payload)
       else await insert(payload)
@@ -82,7 +91,7 @@ export function PayOut() {
           {payouts.map((row) => (
             <tr key={row.id}>
               <Td>{formatDate(row.date)}</Td>
-              <Td className="font-medium text-slate-900">{row.recipient}</Td>
+              <Td className="font-medium text-slate-900"><div className="flex items-center gap-1.5">{row.recipient}{row.receipt_path && <Paperclip size={12} className="text-slate-400" />}</div></Td>
               <Td>{row.category}</Td>
               <Td className="tabular-nums">{formatCurrency(row.amount)}</Td>
               <Td>{row.project_id ? projectName(row.project_id) : '—'}</Td>
@@ -111,6 +120,14 @@ export function PayOut() {
             </Select>
           </FormField>
           <FormField label="Description"><TextArea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} /></FormField>
+          <FormField label="Attachment">
+            <label className="flex h-24 cursor-pointer flex-col items-center justify-center gap-1 rounded-lg border-2 border-dashed border-slate-200 text-center text-xs text-slate-400 hover:border-blue-300 hover:bg-blue-50/30">
+              <Upload size={16} />
+              <span>{form.attachment ? form.attachment.name : 'Click to upload or drag and drop'}</span>
+              <span>PDF, JPG, PNG (Max 5MB)</span>
+              <input type="file" className="hidden" onChange={(e) => setForm({ ...form, attachment: e.target.files?.[0] ?? null })} />
+            </label>
+          </FormField>
           <div className="flex justify-end gap-2 pt-2">
             <Button type="button" variant="secondary" onClick={() => setModalOpen(false)}>Cancel</Button>
             <Button type="submit" disabled={saving}>{saving ? 'Saving…' : 'Save Pay Out'}</Button>

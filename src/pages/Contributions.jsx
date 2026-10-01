@@ -7,6 +7,7 @@ import { StatCard } from '../components/ui/StatCard'
 import { StatusBadge } from '../components/ui/StatusBadge'
 import { EmptyState } from '../components/ui/EmptyState'
 import { Table, Td } from '../components/ui/Table'
+import { KebabMenu } from '../components/ui/KebabMenu'
 import { FormField, TextInput, Select } from '../components/ui/FormField'
 import { useToast, describeError } from '../components/ui/Toast'
 import { formatCurrency, formatDate, todayISO } from '../lib/format'
@@ -50,8 +51,9 @@ export function Contributions() {
     return byMember
   }, [contributions])
 
-  function openRecordRepayment() {
-    setForm({ member_id: members.data[0]?.id ?? '', amount: '', paid_date: todayISO(), payment_method: '', reference: '', notes: '' })
+  function openRecordRepayment(memberId) {
+    const owed = memberId ? memberPending.get(memberId) || 0 : ''
+    setForm({ member_id: memberId || members.data[0]?.id || '', amount: owed ? String(owed) : '', paid_date: todayISO(), payment_method: '', reference: '', notes: '' })
     setModalOpen(true)
   }
 
@@ -96,7 +98,7 @@ export function Contributions() {
           <h1 className="text-xl font-semibold text-slate-900">Contributions & Repayments</h1>
           <p className="text-sm text-slate-500">Track personal money used for company/project expenses</p>
         </div>
-        <Button onClick={openRecordRepayment}><Plus size={16} /> Record Repayment</Button>
+        <Button onClick={() => openRecordRepayment()}><Plus size={16} /> Record Repayment</Button>
       </div>
 
       <div className="grid grid-cols-3 gap-3">
@@ -113,7 +115,7 @@ export function Contributions() {
 
       {loading ? <div className="py-16 text-center text-sm text-slate-400">Loading…</div> : tab === 'Contributions' ? (
         contributions.length === 0 ? <EmptyState title="No contributions recorded" description="Mark an expense as 'Paid personally' to track it here." /> : (
-          <Table columns={['Date', 'Member', 'Purpose', 'Project', 'Amount', 'Status', 'Owed']}>
+          <Table columns={['Date', 'Member', 'Purpose', 'Project', 'Amount', 'Status', 'Owed', 'Actions']}>
             {contributions.map((c) => (
               <tr key={c.id}>
                 <Td>{formatDate(c.date)}</Td>
@@ -123,6 +125,11 @@ export function Contributions() {
                 <Td className="tabular-nums">{formatCurrency(c.amount)}</Td>
                 <Td><StatusBadge status={c.state.status} /></Td>
                 <Td className="tabular-nums">{formatCurrency(c.state.owed)}</Td>
+                <Td>
+                  {c.state.owed > 0 && (
+                    <KebabMenu items={[{ label: 'Record Repayment', onClick: () => openRecordRepayment(c.paid_by_member_id) }]} />
+                  )}
+                </Td>
               </tr>
             ))}
           </Table>
