@@ -102,12 +102,22 @@ export function RecurringPanel({ kind = 'bill', projectId, showProject = false, 
           <section key={item.id} className="min-w-0 surface rounded-2xl border border-slate-200/80 bg-white p-4" aria-label={item.name}>
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div className="min-w-0">
-                <h3 className="text-sm font-semibold text-slate-900">{item.name}{ended && <span className="ml-2 rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-500">Ended</span>}</h3>
-                <p className="mt-0.5 text-xs text-slate-500">
-                  {formatCurrency(item.amount)} / month · due on day {item.due_day}
-                  {item.category ? ` · ${item.category}` : ''}{item.recipient ? ` · ${item.recipient}` : ''}
-                  {showProject && item.project_id ? <> · <ProjectLink id={item.project_id} /></> : null}
-                </p>
+                {showProject && item.project_id && kind === 'maintenance' ? (
+                  <>
+                    <h3 className="text-lg font-bold tracking-tight text-slate-900"><ProjectLink id={item.project_id} />{ended && <span className="ml-2 rounded-full bg-slate-100 px-2 py-0.5 align-middle text-xs font-medium text-slate-500">Ended</span>}</h3>
+                    <p className="mt-0.5 text-sm font-medium text-slate-600">{item.name}</p>
+                    <p className="mt-0.5 text-xs text-slate-500">{formatCurrency(item.amount)} / month · due on day {item.due_day}</p>
+                  </>
+                ) : (
+                  <>
+                    <h3 className="text-sm font-semibold text-slate-900">{item.name}{ended && <span className="ml-2 rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-500">Ended</span>}</h3>
+                    <p className="mt-0.5 text-xs text-slate-500">
+                      {formatCurrency(item.amount)} / month · due on day {item.due_day}
+                      {item.category ? ` · ${item.category}` : ''}{item.recipient ? ` · ${item.recipient}` : ''}
+                      {showProject && item.project_id ? <> · <ProjectLink id={item.project_id} /></> : null}
+                    </p>
+                  </>
+                )}
               </div>
               <div className="flex items-center gap-3">
                 <p className={`text-sm font-medium tabular-nums ${pending.length ? 'text-amber-600' : 'text-emerald-600'}`}>
