@@ -55,7 +55,7 @@ export function Projects() {
       ) : (
         <div className="space-y-3">
           {rows.map((p) => (
-            <article key={p.id} className="rounded-xl border border-slate-200 bg-white p-4">
+            <article key={p.id} className="surface rounded-2xl border border-slate-200/80 bg-white p-4">
               <div className="flex items-start justify-between gap-3">
                 <div className="flex min-w-0 items-start gap-3">
                   <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-blue-50 text-blue-600"><Briefcase size={18} /></div>

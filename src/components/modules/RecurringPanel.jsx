@@ -99,7 +99,7 @@ export function RecurringPanel({ kind = 'bill', projectId, showProject = false, 
       {rows.length === 0 ? <EmptyState icon={CalendarClock} title={emptyTitle ?? `No ${w.one.toLowerCase()}s yet`} description={emptyDescription} /> : rows.map(({ item, months, pending, pendingAmount, ended }) => {
         const shown = expanded[item.id] ? months : months.slice(-12)
         return (
-          <section key={item.id} className="min-w-0 rounded-xl border border-slate-200 bg-white p-4" aria-label={item.name}>
+          <section key={item.id} className="min-w-0 surface rounded-2xl border border-slate-200/80 bg-white p-4" aria-label={item.name}>
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div className="min-w-0">
                 <h3 className="text-sm font-semibold text-slate-900">{item.name}{ended && <span className="ml-2 rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-500">Ended</span>}</h3>

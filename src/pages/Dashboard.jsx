@@ -4,6 +4,7 @@ import { AlertCircle, Briefcase, HandCoins, Landmark, Plus, Scale, TrendingDown,
 import { StatCard } from '../components/ui/StatCard'
 import { EmptyState } from '../components/ui/EmptyState'
 import { Button } from '../components/ui/Button'
+import { HeroBanner } from '../components/ui/Hero'
 import { Select } from '../components/ui/FormField'
 import { StatusBadge } from '../components/ui/StatusBadge'
 import { Amount, Card, ChangeBadge, PageHeader } from '../components/ui/misc'
@@ -67,6 +68,8 @@ export function Dashboard() {
           {PERIODS.map(([id, label]) => <option key={id} value={id}>{label}</option>)}
         </Select>
       </PageHeader>
+
+      <HeroBanner balance={reserve.current} moneyIn={v.cur.totalIncome} moneyOut={v.cur.totalExpenses} net={v.cur.netPosition} periodLabel={PERIODS.find(([id]) => id === period)?.[1].toLowerCase()} companyName={data.settings.company_name} trend={v.trend} />
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <StatCard label="Total Income" value={formatCurrency(v.cur.totalIncome)} icon={TrendingUp} accent="positive" sub={<ChangeBadge value={v.change.income} />} to="/payments" />

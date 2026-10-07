@@ -3,7 +3,7 @@ import { Login, SetPassword } from '../pages/Login'
 import { Button } from '../components/ui/Button'
 
 const Shell = ({ children }) => (
-  <div className="flex min-h-svh items-center justify-center bg-[var(--color-navy-950)] px-4">
+  <div className="flex min-h-svh items-center justify-center brand-sidebar px-4">
     <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl">{children}</div>
   </div>
 )
@@ -11,7 +11,7 @@ const Shell = ({ children }) => (
 export function AuthGate({ children }) {
   const auth = useAuth()
   if (auth.status === 'ready') return children
-  if (auth.status === 'loading') return <div className="flex min-h-svh items-center justify-center bg-[var(--color-navy-950)] text-sm text-slate-400" role="status">Loading…</div>
+  if (auth.status === 'loading') return <div className="flex min-h-svh items-center justify-center brand-sidebar text-sm text-slate-400" role="status">Loading…</div>
   if (auth.status === 'signed_out') return <Shell><Login /></Shell>
   if (auth.status === 'set_password') return <Shell><SetPassword /></Shell>
   return (

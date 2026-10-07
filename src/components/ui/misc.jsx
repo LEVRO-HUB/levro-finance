@@ -8,8 +8,8 @@ export function PageHeader({ title, subtitle, children, breadcrumb }) {
     <div className="flex flex-wrap items-start justify-between gap-3">
       <div className="min-w-0">
         {breadcrumb}
-        <h1 className="text-xl font-semibold text-slate-900">{title}</h1>
-        {subtitle && <p className="text-sm text-slate-500">{subtitle}</p>}
+        <h1 className="flex items-center gap-3 text-2xl font-bold tracking-tight text-slate-900"><span aria-hidden="true" className="h-7 w-1.5 flex-shrink-0 rounded-full bg-linear-to-b from-blue-600 to-sky-400" />{title}</h1>
+        {subtitle && <p className="mt-1 pl-[18px] text-sm text-slate-500">{subtitle}</p>}
       </div>
       {children && <div className="flex flex-wrap items-center gap-2">{children}</div>}
     </div>
@@ -18,13 +18,13 @@ export function PageHeader({ title, subtitle, children, breadcrumb }) {
 
 export function Tabs({ tabs, value, onChange }) {
   return (
-    <div role="tablist" className="flex gap-1 overflow-x-auto border-b border-slate-200">
+    <div role="tablist" className="surface flex gap-1 overflow-x-auto rounded-xl border border-slate-200/80 bg-white p-1">
       {tabs.map((t) => {
         const tab = typeof t === 'string' ? { id: t, label: t } : t
-        const cls = (active) => `min-h-0 whitespace-nowrap border-b-2 px-3 py-2 text-sm font-medium ${active ? 'border-blue-600 text-blue-700' : 'border-transparent text-slate-500 hover:text-slate-700'}`
+        const cls = (active) => `min-h-0 whitespace-nowrap rounded-lg px-3.5 py-2 text-sm font-semibold transition-colors ${active ? 'bg-linear-to-r from-[#2563eb] to-[#0ea5e9] text-pure shadow-md shadow-[#2563eb]/40' : 'text-slate-500 hover:bg-blue-50 hover:text-blue-700'}`
         return tab.to
           ? <NavLink key={tab.id} to={tab.to} end role="tab" className={({ isActive }) => cls(isActive)}>{tab.label}</NavLink>
-          : <button key={tab.id} type="button" role="tab" aria-selected={value === tab.id} onClick={() => onChange(tab.id)} className={cls(value === tab.id)}>{tab.label}{tab.count != null && <span className="ml-1.5 rounded-full bg-slate-100 px-1.5 text-[11px] text-slate-500">{tab.count}</span>}</button>
+          : <button key={tab.id} type="button" role="tab" aria-selected={value === tab.id} onClick={() => onChange(tab.id)} className={cls(value === tab.id)}>{tab.label}{tab.count != null && <span className={`ml-1.5 rounded-full px-1.5 text-[11px] ${value === tab.id ? 'bg-pure/25 text-pure' : 'bg-slate-100 text-slate-500'}`}>{tab.count}</span>}</button>
       })}
     </div>
   )
@@ -60,10 +60,10 @@ export function ChangeBadge({ value, goodWhenUp = true, label = 'vs previous per
 
 export function Card({ title, action, children, className = '' }) {
   return (
-    <section className={`min-w-0 rounded-xl border border-slate-200 bg-white p-4 sm:p-5 ${className}`}>
+    <section className={`surface min-w-0 rounded-2xl border border-slate-200/80 bg-white p-4 sm:p-5 ${className}`}>
       {(title || action) && (
         <div className="mb-4 flex items-center justify-between gap-2">
-          <h2 className="text-sm font-semibold text-slate-700">{title}</h2>
+          <h2 className="flex items-center gap-2 text-sm font-bold text-slate-800"><span aria-hidden="true" className="h-2 w-2 rounded-full bg-linear-to-br from-blue-600 to-sky-400" />{title}</h2>
           {action}
         </div>
       )}

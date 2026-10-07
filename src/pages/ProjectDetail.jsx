@@ -136,7 +136,7 @@ export function ProjectDetail() {
 
       {tab === 'activity' && (
         logs.length === 0 ? <EmptyState title="No activity yet" description="Changes to this project's finances will be listed here." /> : (
-          <ol className="rounded-xl border border-slate-200 bg-white">
+          <ol className="surface rounded-2xl border border-slate-200/80 bg-white">
             {logs.map((l) => (
               <li key={l.id} className="flex items-start gap-3 border-b border-slate-100 px-4 py-3 last:border-0">
                 <span className={`mt-1.5 h-2 w-2 flex-shrink-0 rounded-full ${l.action === 'deleted' ? 'bg-red-400' : l.action === 'updated' ? 'bg-amber-400' : 'bg-emerald-500'}`} />

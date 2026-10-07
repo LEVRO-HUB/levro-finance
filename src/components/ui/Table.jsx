@@ -22,22 +22,22 @@ export function usePaged(rows, size = 100) {
 export function Table({ columns, children, footer, more }) {
   return (
     <>
-    <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
+    <div className="surface overflow-hidden rounded-2xl border border-slate-200/80 bg-white">
       <div className="overflow-x-auto">
         <table className="w-full min-w-max text-left text-sm">
           <thead>
-            <tr className="border-b border-slate-100 bg-slate-50/60">
+            <tr className="border-b border-slate-200 bg-linear-to-r from-blue-50 via-slate-50 to-slate-50">
               {columns.map((c) => {
                 const col = typeof c === 'string' ? { label: c } : c
                 return (
-                  <th key={col.label} className={`whitespace-nowrap px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-slate-500 ${col.align === 'right' ? 'text-right' : ''}`}>
+                  <th key={col.label} className={`whitespace-nowrap px-4 py-2.5 text-xs font-bold uppercase tracking-wide text-blue-800 ${col.align === 'right' ? 'text-right' : ''}`}>
                     {col.label}
                   </th>
                 )
               })}
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-100">{children}</tbody>
+          <tbody className="divide-y divide-slate-100 [&>tr]:transition-colors [&>tr:hover]:bg-blue-50/60">{children}</tbody>
           {footer && <tfoot className="border-t border-slate-200 bg-slate-50/60 text-sm font-semibold">{footer}</tfoot>}
         </table>
       </div>

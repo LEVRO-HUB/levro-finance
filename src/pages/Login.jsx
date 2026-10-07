@@ -1,12 +1,11 @@
 import { useState } from 'react'
-import { Landmark } from 'lucide-react'
 import { useAuth } from '../auth/AuthProvider'
 import { Button } from '../components/ui/Button'
 import { FormField, TextInput } from '../components/ui/FormField'
 
 const Brand = ({ sub }) => (
   <div className="mb-5">
-    <div className="flex items-center gap-2"><Landmark size={20} className="text-blue-600" /><span className="text-lg font-semibold tracking-tight text-slate-900">Levrotec Finance Tracker</span></div>
+    <div className="flex items-center gap-3"><img src={`${import.meta.env.BASE_URL}icon-192.png`} alt="" width="40" height="40" className="h-10 w-10 rounded-xl" /><span className="text-lg font-bold tracking-tight text-slate-900">Levrotec Finance Tracker</span></div>
     <p className="mt-1 text-sm text-slate-500">{sub}</p>
   </div>
 )
