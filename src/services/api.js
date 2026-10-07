@@ -6,6 +6,7 @@ import { invoiceState, invoiceTotal, memberBalance, monthName, reimbursementStat
 import { isValidISODate, addDays } from '../lib/dates'
 import { formatCurrency, slugify, todayISO } from '../lib/format'
 import { ValidationError } from './errors'
+import { PROFILE_FIELDS, TAX_LINES, companyProfile, invoiceBreakdown } from '../lib/company'
 
 export { ValidationError }
 
@@ -419,6 +420,41 @@ export function createApi(adapter) {
       const invoice_number = str(values.invoice_number)
       c.check(invoice_number, 'invoice_number', 'Invoice number is required.')
       c.check(!state.invoices.some((i) => i.id !== id && i.invoice_number.toLowerCase() === invoice_number.toLowerCase()), 'invoice_number', 'This invoice number is already used.')
+      // Template invoices: the printed lines are the source of the amount.
+      let details
+      if (values.details) {
+        const d = values.details
+        const items = (Array.isArray(d.items) ? d.items : []).map((it) => ({ title: str(it.title), description: str(it.description), qty: Number(str(it.qty) || 1), rate: Number(str(it.rate)) }))
+          .filter((it) => it.title || it.description || it.rate)
+        c.check(items.length > 0, 'items', 'Add at least one item.')
+        items.forEach((it, i) => {
+          c.check(it.title, `item_${i}_title`, 'Each item needs a title.')
+          c.check(Number.isFinite(it.qty) && it.qty > 0, `item_${i}_qty`, 'Quantity must be more than zero.')
+          c.check(Number.isFinite(it.rate) && it.rate > 0 && it.rate <= 1e10, `item_${i}_rate`, 'Rate must be more than zero.')
+        })
+        const pay = Object.fromEntries(['account_name', 'bank', 'account_no', 'ifsc', 'upi'].map((k) => [k, str(d.pay?.[k])]))
+        // optional discount and tax percentages — nothing is added unless it was typed
+        const subtotal = round2(sum(items, (it) => round2(it.qty * it.rate)))
+        const discount = str(d.discount) === '' ? 0 : Number(d.discount)
+        c.check(Number.isFinite(discount) && discount >= 0 && discount <= subtotal, 'discount', 'Discount must be between zero and the subtotal.')
+        const tax = { other_label: str(d.tax?.other_label) }
+        for (const [key] of TAX_LINES) {
+          const rate = str(d.tax?.[`${key}_rate`]) === '' ? 0 : Number(d.tax[`${key}_rate`])
+          c.check(Number.isFinite(rate) && rate >= 0 && rate <= 100, `${key}_rate`, 'Tax rate must be a percentage between 0 and 100.')
+          tax[`${key}_rate`] = Number.isFinite(rate) ? rate : 0
+        }
+        const previous = id ? find(state, 'invoices', id)?.details : null
+        details = {
+          bill_to_name: str(d.bill_to_name) || project?.client_name || project?.name || '', bill_to_line: str(d.bill_to_line),
+          bill_to_address: str(d.bill_to_address), bill_to_email: str(d.bill_to_email), bill_to_gstin: str(d.bill_to_gstin),
+          billing_period: str(d.billing_period), payment_terms: str(d.payment_terms), items, discount: Number.isFinite(discount) ? round2(discount) : 0, tax, pay,
+          // the company details as they stood when the invoice was issued, so later changes in Settings never rewrite old invoices
+          company: previous?.company ?? companyProfile(state.settings),
+        }
+        c.check(details.bill_to_name, 'bill_to_name', 'Enter who the invoice is billed to.')
+        const b = invoiceBreakdown(details)
+        values = { ...values, amount: b.taxable || '', tax_amount: b.tax }
+      }
       const amount = parseAmount(c, values.amount)
       const tax_amount = str(values.tax_amount) === '' ? 0 : parseAmount(c, values.tax_amount, 'tax_amount', { allowZero: true, label: 'Tax' })
       const tds_amount = str(values.tds_amount) === '' ? 0 : parseAmount(c, values.tds_amount, 'tds_amount', { allowZero: true, label: 'TDS' })
@@ -438,7 +474,7 @@ export function createApi(adapter) {
       }
       if (values.attachment) c.check(values.attachment.size <= MAX_FILE_BYTES && values.attachment.size > 0, 'attachment', 'Attachment must be between 1 byte and 5 MB.')
       c.done()
-      const row = upsert(state, 'invoices', id, { project_id: project.id, client_name: project.client_name, invoice_number, invoice_date, due_date, amount, tax_amount, tds_amount, status, notes: str(values.notes), attachment_document_id: id ? find(state, 'invoices', id).attachment_document_id ?? null : null })
+      const row = upsert(state, 'invoices', id, { project_id: project.id, client_name: project.client_name, invoice_number, invoice_date, due_date, amount, tax_amount, tds_amount, status, notes: str(values.notes), ...(details ? { details } : {}), attachment_document_id: id ? find(state, 'invoices', id).attachment_document_id ?? null : null })
       if (values.attachment) {
         const prev = row.attachment_document_id && find(state, 'documents', row.attachment_document_id)
         if (prev) await storeVersion(state, prev, values.attachment)
@@ -505,6 +541,19 @@ export function createApi(adapter) {
       Object.assign(state.settings, { company_name: str(values.company_name), user_name: str(values.user_name), opening_reserve, reserve_as_of })
       log(state, 'updated', 'settings', 'app', `Updated settings (opening reserve ${formatCurrency(opening_reserve)})`)
       return state.settings
+    }),
+
+    // Company details printed on invoices. Every field is optional.
+    saveInvoiceProfile: (values) => mutate((state) => {
+      const c = new Checker()
+      const profile = Object.fromEntries(PROFILE_FIELDS.map((k) => [k, str(values[k])]))
+      c.check(profile.name, 'name', 'Company name is required.')
+      c.check(!profile.email || /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(profile.email), 'email', 'Enter a valid email address.')
+      for (const k of PROFILE_FIELDS) c.check(profile[k].length <= 300, k, 'That is too long.')
+      c.done()
+      state.settings.invoice_profile = profile
+      log(state, 'updated', 'settings', 'app', 'Updated invoice & company details')
+      return profile
     }),
 
     saveListItem: (collection, name, id = null) => mutate((state) => {

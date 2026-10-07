@@ -32,7 +32,7 @@ describe.skipIf(!URL)('Supabase data layer (real Postgres, real RLS)', () => {
     await sql(`truncate public.activity_logs, public.document_versions, public.documents, public.reimbursements, public.member_advances, public.income, public.expenses, public.invoices, public.recurring_items, public.projects, public.members cascade`)
     await sql(`delete from storage.objects`)
     await sql(`alter sequence public.income_code_seq restart; alter sequence public.expense_code_seq restart; alter sequence public.reimbursement_code_seq restart; alter sequence public.advance_code_seq restart`)
-    await sql(`update public.app_settings set company_name = 'Levrotec', opening_reserve = 0, reserve_as_of = null`)
+    await sql(`update public.app_settings set company_name = 'Levrotec', opening_reserve = 0, reserve_as_of = null, invoice_profile = '{}'`)
     await sql(`update public.categories set name = 'Hosting' where name = 'Cloud'`)
     await sql(`delete from public.categories where name not in ('Hosting','Software','Subscription','Office','Equipment','Furniture','Rent','Utilities','Salary','Travel','Marketing','Vendor Payment','Others')`)
     await sql(`insert into public.categories (name) values ('Hosting') on conflict do nothing`)
@@ -364,5 +364,28 @@ describe.skipIf(!URL)('Supabase data layer (real Postgres, real RLS)', () => {
     d = await a.api.load()
     expect(d.recurring).toHaveLength(1)
     expect(d.expenses).toHaveLength(1); expect(d.expenses[0].recurring_id).toBeNull()
+  })
+
+  it('template invoices and company details persist; members cannot change company details', async () => {
+    const a = open(admin), m = open(member)
+    const p = await a.api.saveProject({ name: 'Chippy ERP', client_name: 'Chippy Properties', contract_value: 200000, status: 'Active' })
+    await a.api.saveInvoiceProfile({ name: 'LEVROTEC TECHNOLOGIES', phone: '00000 00000', bank: 'Test Bank' })
+    await m.api.refresh()
+    const inv = await m.api.saveInvoice({ project_id: p.id, invoice_number: 'LEV-CHP-2026-001', invoice_date: today, status: 'Sent',
+      details: { bill_to_address: '12 Test Street', items: [{ title: 'Build', qty: 2, rate: 50000 }, { title: 'Support', description: 'Monthly', qty: 1, rate: 8000 }], discount: 8000, tax: { igst_rate: 18 } } })
+    expect(inv).toMatchObject({ amount: 100000, tax_amount: 18000 })
+    await a.api.refresh()
+    const d = await a.api.load()
+    expect(d.settings.invoice_profile).toMatchObject({ phone: '00000 00000', bank: 'Test Bank' })
+    expect(d.invoices[0].details).toMatchObject({ bill_to_name: 'Chippy Properties', bill_to_address: '12 Test Street', discount: 8000, company: { phone: '00000 00000' } })
+    expect(d.invoices[0].details.items).toHaveLength(2)
+    expect(F.invoiceState(d.invoices[0], d.income)).toMatchObject({ total: 118000, paid: 0, outstanding: 118000 })
+    expect(F.projectFinancials(d.projects[0], d)).toMatchObject({ received: 0, outstanding: 200000 })
+    // saving again without touching anything must not rewrite the invoice
+    const before = (await sql(`select updated_at from public.invoices`))[0].updated_at
+    await a.api.saveProject({ ...d.projects[0], notes: 'x' }, p.id)
+    expect((await sql(`select updated_at from public.invoices`))[0].updated_at).toEqual(before)
+    await expect(m.api.saveInvoiceProfile({ name: 'Hacked' })).rejects.toThrow()
+    expect((await sql(`select invoice_profile->>'name' as n from public.app_settings`))[0].n).toBe('LEVROTEC TECHNOLOGIES')
   })
 })

@@ -2,7 +2,8 @@ import { useCallback, useEffect, useState } from 'react'
 import { Check, Download, Pencil, Plus, Trash2, X } from 'lucide-react'
 import { Button } from '../components/ui/Button'
 import { ConfirmDialog } from '../components/ui/ConfirmDialog'
-import { FormField, TextInput } from '../components/ui/FormField'
+import { FormField, TextArea, TextInput } from '../components/ui/FormField'
+import { companyProfile } from '../lib/company'
 import { IconButton } from '../components/ui/Table'
 import { Card, PageHeader } from '../components/ui/misc'
 import { useToast, describeError } from '../components/ui/Toast'
@@ -52,6 +53,37 @@ function ListEditor({ title, description, collection, usage }) {
           </li>
         ))}
       </ul>
+    </Card>
+  )
+}
+
+const PROFILE_GROUPS = [
+  ['Company', [['name', 'Company / legal name'], ['tagline', 'Tagline (under the name)'], ['address', 'Address', 'area'], ['email', 'Email'], ['phone', 'Phone'], ['website', 'Website'], ['gstin', 'GSTIN'], ['pan', 'PAN']]],
+  ['Bank details (printed under Payment details)', [['account_name', 'Account name'], ['bank', 'Bank name'], ['account_no', 'Account number'], ['ifsc', 'IFSC'], ['upi', 'UPI ID']]],
+  ['Defaults and signatory', [['payment_terms', 'Default payment terms'], ['signatory', 'Authorised signatory'], ['signatory_role', 'Signatory designation']]],
+]
+
+// Everything Levrotec-side that prints on an invoice. All optional: an empty field is simply left off.
+function InvoiceProfile() {
+  const { data, api, can } = useData()
+  const f = useForm(companyProfile(data.settings))
+  return (
+    <Card title="Invoice & company details" className="lg:col-span-2">
+      <p className="-mt-2 mb-3 text-xs text-slate-400">Printed on every new invoice. Leave a field empty to leave it off. Invoices already created keep the details they were issued with.</p>
+      <form noValidate onSubmit={(e) => f.submit(e, (v) => api.saveInvoiceProfile(v), { success: 'Invoice details saved.' })}>
+        {PROFILE_GROUPS.map(([title, fields]) => (
+          <fieldset key={title} className="mb-3" disabled={!can.admin}>
+            <legend className="mb-2 text-xs font-semibold text-slate-600">{title}</legend>
+            <div className="grid gap-x-4 sm:grid-cols-2">
+              {fields.map(([key, label, kind]) => (
+                <FormField key={key} label={label} error={f.errors[key]}>{kind === 'area' ? <TextArea {...f.bind(key)} className="min-h-14" /> : <TextInput {...f.bind(key)} />}</FormField>
+              ))}
+            </div>
+          </fieldset>
+        ))}
+        {can.admin ? <div className="flex justify-end"><Button type="submit" disabled={f.saving}>{f.saving ? 'Saving…' : 'Save invoice details'}</Button></div>
+          : <p className="rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-500">Only an admin can change these details.</p>}
+      </form>
     </Card>
   )
 }
@@ -155,6 +187,7 @@ export function Settings() {
           </div>
         </Card>
 
+        <InvoiceProfile />
         <ListEditor title="Expense Categories" collection="categories" description="Used by expenses, pay outs and purchases. Renaming updates existing records." usage={(n) => data.expenses.filter((e) => e.category === n).length} />
         {mode === 'supabase' && can.admin && <TeamAccess />}
         <ListEditor title="Payment Methods" collection="payment_methods" description="Used wherever money moves. Renaming updates existing records." usage={methodUse} />

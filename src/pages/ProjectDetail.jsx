@@ -59,7 +59,7 @@ export function ProjectDetail() {
   const actions = {
     transactions: <><Button variant="secondary" onClick={() => modals.open({ kind: 'expense', action: 'add' })}><Plus size={16} /> Money Out</Button><Button onClick={() => modals.open({ kind: 'income', action: 'add' })}><Plus size={16} /> Money In</Button></>,
     expenses: <Button onClick={() => modals.open({ kind: 'expense', action: 'add' })}><Plus size={16} /> Add Expense</Button>,
-    invoices: <Button onClick={() => modals.open({ kind: 'invoice', action: 'add' })}><Plus size={16} /> Add Invoice</Button>,
+    invoices: <><Button variant="secondary" onClick={() => modals.open({ kind: 'invoice', action: 'add' })}>Record Existing</Button><Button onClick={() => modals.open({ kind: 'invoice', action: 'create' })}><Plus size={16} /> Invoice</Button></>,
     payments: <Button onClick={() => modals.open({ kind: 'income', action: 'add' })}><Plus size={16} /> Record Payment</Button>,
     documents: <Button onClick={() => modals.open({ kind: 'document', action: 'add' })}><Upload size={16} /> Add Document</Button>,
     reimbursements: <Button onClick={() => modals.open({ kind: 'expense', action: 'add' })}><Plus size={16} /> Add Member Expense</Button>,

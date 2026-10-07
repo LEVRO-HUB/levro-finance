@@ -14,7 +14,7 @@ import { toAppError, ValidationError } from '../errors'
 import { PAGE_SIZE, TABLES } from './tables'
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
-const same = (a, b) => (a ?? null) === (b ?? null) || (typeof a === 'number' && Number(a) === Number(b)) || (a === '' && b == null) || (b === '' && a == null)
+const same = (a, b) => (a ?? null) === (b ?? null) || (a && b && typeof a === 'object' && typeof b === 'object' && JSON.stringify(a) === JSON.stringify(b)) || (typeof a === 'number' && Number(a) === Number(b)) || (a === '' && b == null) || (b === '' && a == null)
 const byId = (rows) => new Map(rows.map((r) => [r.id, r]))
 
 // app field → column value
@@ -85,6 +85,7 @@ export function createRemoteAdapter(gateway) {
       company_name: rawSettings?.company_name ?? 'Levrotec',
       opening_reserve: Number(rawSettings?.opening_reserve ?? 0),
       reserve_as_of: rawSettings?.reserve_as_of ?? '',
+      invoice_profile: rawSettings?.invoice_profile ?? {},
       user_name: rawProfile?.full_name || (rawProfile?.email ?? '').split('@')[0] || '',
     }
     state.meta = { version: SCHEMA_VERSION, counters: {}, backend: 'supabase' }
@@ -155,6 +156,7 @@ export function createRemoteAdapter(gateway) {
       if (!same(s0.company_name, s1.company_name)) patch.company_name = s1.company_name
       if (!same(s0.opening_reserve, s1.opening_reserve)) patch.opening_reserve = s1.opening_reserve
       if (!same(s0.reserve_as_of, s1.reserve_as_of)) patch.reserve_as_of = s1.reserve_as_of || null
+      if (JSON.stringify(s0.invoice_profile ?? {}) !== JSON.stringify(s1.invoice_profile ?? {})) patch.invoice_profile = s1.invoice_profile ?? {}
       if (Object.keys(patch).length) await run('app_settings', () => gateway.update('app_settings', true, patch))
       if (!same(s0.user_name, s1.user_name)) await run('profile', () => gateway.updateOwnName(s1.user_name ?? ''))
 

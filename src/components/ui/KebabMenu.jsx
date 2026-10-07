@@ -10,7 +10,9 @@ export function KebabMenu({ items }) {
   useEffect(() => {
     if (!pos) return
     const close = (e) => { if (!ref.current?.contains(e.target)) setPos(null) }
-    const hide = () => setPos(null)
+    // focusing the button can nudge a wide table sideways; that first small scroll must not close the menu it just opened
+    const opened = performance.now()
+    const hide = (e) => { if (e.type === 'resize' || performance.now() - opened > 300) setPos(null) }
     document.addEventListener('mousedown', close)
     window.addEventListener('scroll', hide, true)
     window.addEventListener('resize', hide)

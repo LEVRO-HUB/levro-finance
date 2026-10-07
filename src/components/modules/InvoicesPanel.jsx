@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
-import { FileSpreadsheet, Paperclip } from 'lucide-react'
+import { FileDown, FileSpreadsheet, Paperclip } from 'lucide-react'
+import { InvoicePreviewModal } from '../invoice/InvoicePreviewModal'
 import { Table, Td, usePaged } from '../ui/Table'
 import { EmptyState } from '../ui/EmptyState'
 import { StatusBadge } from '../ui/StatusBadge'
@@ -52,6 +53,7 @@ export function InvoicesPanel({ projectId, modals, initialStatus = 'All', initia
   const files = useFileActions()
   const { filters, set, reset, activeCount, range } = useFilters({ q: '', range: DEFAULT_RANGE, project: 'All', status: initialStatus, payment: 'All' }, initial)
   const [detailId, setDetailId] = useState(null)
+  const [pdfId, setPdfId] = useState(null)
 
   const scoped = useMemo(() => data.invoices.filter((i) => !projectId || i.project_id === projectId)
     .map((i) => ({ ...i, st: invoiceState(i, data.income, today) }))
@@ -78,19 +80,20 @@ export function InvoicesPanel({ projectId, modals, initialStatus = 'All', initia
         <FilterSelect label="Payment" allLabel="Any payment status" value={filters.payment} onChange={(v) => set('payment', v)} options={['Unpaid', 'Partially Paid', 'Paid']} width="w-44" />
       </FilterBar>
       {rows.length === 0 ? (
-        <EmptyState icon={FileSpreadsheet} title={scoped.length ? 'No invoices match these filters' : 'No invoices yet'} description={scoped.length ? undefined : 'Create an invoice to start tracking what clients owe.'} />
+        <EmptyState icon={FileSpreadsheet} title={scoped.length ? 'No invoices match these filters' : 'No invoices yet'} description={scoped.length ? undefined : 'Click “+ Invoice” to create one on the Levrotec template and download it as a PDF.'} />
       ) : (
         <Table more={page.more} columns={['Invoice #', ...(projectId ? [] : ['Project', 'Client']), 'Invoice Date', 'Due Date', { label: 'Amount', align: 'right' }, { label: 'Tax', align: 'right' }, { label: 'Total', align: 'right' }, { label: 'Received', align: 'right' }, { label: 'Outstanding', align: 'right' }, 'Status', 'Payment', '']}>
           {page.visible.map((i) => (
             <tr key={i.id} className="hover:bg-slate-50/60">
-              <Td className="font-medium text-slate-900"><button type="button" className="min-h-0 hover:text-blue-600" onClick={() => setDetailId(i.id)}>{i.invoice_number}</button>{attachment(i)}</Td>
+              <Td className="font-medium text-slate-900"><button type="button" className="min-h-0 hover:text-blue-600" onClick={() => setDetailId(i.id)}>{i.invoice_number}</button>{i.details && <button type="button" title="View / download PDF" aria-label={`Download invoice ${i.invoice_number}`} className="ml-1.5 min-h-0 align-middle text-slate-400 hover:text-blue-600" onClick={() => setPdfId(i.id)}><FileDown size={14} /></button>}{attachment(i)}</Td>
               {!projectId && <><Td><ProjectLink id={i.project_id} tab="invoices" /></Td><Td>{i.client_name || '—'}</Td></>}
               <Td>{formatDate(i.invoice_date)}</Td><Td>{formatDate(i.due_date) || '—'}</Td>
               <Td right>{formatCurrency(i.amount)}</Td><Td right>{formatCurrency(i.tax_amount)}</Td><Td right className="font-medium text-slate-900">{formatCurrency(i.st.total)}</Td>
               <Td right className="text-emerald-600">{formatCurrency(i.st.paid)}</Td><Td right className={i.st.outstanding > 0 ? 'text-amber-600' : ''}>{formatCurrency(i.st.outstanding)}</Td>
               <Td><StatusBadge status={i.st.status} /></Td><Td><StatusBadge status={i.st.paymentStatus} /></Td>
               <Td right><KebabMenu items={[
-                { label: 'View', onClick: () => setDetailId(i.id) },
+                i.details && { label: 'View / Download PDF', onClick: () => setPdfId(i.id) },
+                { label: i.details ? 'Payments & details' : 'View', onClick: () => setDetailId(i.id) },
                 i.st.outstanding > 0 && i.st.status !== 'Cancelled' && { label: 'Record payment', onClick: () => modals.open({ kind: 'income', action: 'add', invoice: i }) },
                 { label: 'Edit', onClick: () => modals.open({ kind: 'invoice', action: 'edit', record: i }) },
                 modals.canDelete && { label: 'Delete', danger: true, onClick: () => modals.open({ kind: 'invoice', action: 'delete', record: i }) },
@@ -100,6 +103,7 @@ export function InvoicesPanel({ projectId, modals, initialStatus = 'All', initia
         </Table>
       )}
       <InvoiceDetail invoiceId={detailId} onClose={() => setDetailId(null)} modals={modals} />
+      <InvoicePreviewModal invoiceId={pdfId} onClose={() => setPdfId(null)} />
     </div>
   )
 }

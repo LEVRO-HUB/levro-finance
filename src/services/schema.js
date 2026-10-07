@@ -48,7 +48,7 @@ export const DEFAULT_PAYMENT_METHODS = ['Bank Transfer', 'UPI', 'Cash', 'Credit 
 export const MAX_FILE_BYTES = 5 * 1024 * 1024
 
 export function emptyState() {
-  const state = { meta: { version: SCHEMA_VERSION, counters: {} }, settings: { company_name: 'Levrotec', opening_reserve: 0, reserve_as_of: '', user_name: '' } }
+  const state = { meta: { version: SCHEMA_VERSION, counters: {} }, settings: { company_name: 'Levrotec', opening_reserve: 0, reserve_as_of: '', user_name: '', invoice_profile: {} } }
   for (const c of COLLECTIONS) state[c] = []
   return state
 }

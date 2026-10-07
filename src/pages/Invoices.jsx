@@ -25,7 +25,8 @@ export function Invoices() {
   return (
     <div className="space-y-4">
       <PageHeader title="Invoices" subtitle="Invoices raised to clients and what is still outstanding on them">
-        <Button onClick={() => modals.open({ kind: 'invoice', action: 'add' })} disabled={data.projects.length === 0} title={data.projects.length === 0 ? 'Create a project first' : undefined}><Plus size={16} /> Add Invoice</Button>
+        <Button variant="secondary" onClick={() => modals.open({ kind: 'invoice', action: 'add' })} disabled={data.projects.length === 0} title={data.projects.length === 0 ? 'Create a project first' : 'Record an invoice that was made outside the tracker'}>Record Existing</Button>
+        <Button onClick={() => modals.open({ kind: 'invoice', action: 'create' })} disabled={data.projects.length === 0} title={data.projects.length === 0 ? 'Create a project first' : undefined}><Plus size={16} /> Invoice</Button>
       </PageHeader>
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <StatCard label="Total Invoiced" value={formatCurrency(t.invoiced)} />

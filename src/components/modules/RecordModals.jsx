@@ -3,6 +3,7 @@ import { ConfirmDialog } from '../ui/ConfirmDialog'
 import { ExpenseFormModal } from '../forms/ExpenseFormModal'
 import { IncomeFormModal } from '../forms/IncomeFormModal'
 import { InvoiceFormModal } from '../forms/InvoiceFormModal'
+import { InvoiceBuilderModal } from '../forms/InvoiceBuilderModal'
 import { AdvanceModal, RepaymentModal } from '../forms/MemberMoneyModals'
 import { DocumentUploadModal } from '../forms/DocumentModals'
 import { useData } from '../../store/DataProvider'
@@ -32,7 +33,9 @@ export function useRecordModals({ lockProjectId } = {}) {
     <>
       <IncomeFormModal open={form('income')} onClose={close} income={s?.action === 'edit' ? s.record : null} invoice={s?.invoice} lockProjectId={lockProjectId} />
       <ExpenseFormModal open={form('expense')} onClose={close} expense={s?.action === 'edit' ? s.record : null} mode={s?.mode ?? 'expense'} lockProjectId={lockProjectId} />
-      <InvoiceFormModal open={form('invoice')} onClose={close} invoice={s?.action === 'edit' ? s.record : null} lockProjectId={lockProjectId} />
+      {/* 'create' = the Levrotec template; 'add' = record an invoice made elsewhere. Editing reopens whichever made it. */}
+      <InvoiceFormModal open={is('invoice', 'add') || (is('invoice', 'edit') && !s.record?.details)} onClose={close} invoice={s?.action === 'edit' ? s.record : null} lockProjectId={lockProjectId} />
+      <InvoiceBuilderModal open={is('invoice', 'create') || (is('invoice', 'edit') && !!s.record?.details)} onClose={close} invoice={s?.action === 'edit' ? s.record : null} lockProjectId={lockProjectId} onCreated={s?.onCreated} />
       <RepaymentModal open={is('reimbursement', 'add')} onClose={close} memberId={s?.memberId} expense={s?.expense} />
       <AdvanceModal open={form('advance')} onClose={close} advance={s?.action === 'edit' ? s.record : null} memberId={s?.memberId} direction={s?.direction} />
       <DocumentUploadModal open={is('document', 'add', 'replace')} onClose={close} lockProjectId={lockProjectId} replaceDoc={s?.action === 'replace' ? s.record : null} />

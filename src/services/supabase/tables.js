@@ -7,7 +7,7 @@ export const TABLES = [
   { c: 'members', t: 'members', cols: ['id', 'name', 'designation', 'email', 'phone', 'joining_date', 'is_active', 'notes'] },
   { c: 'projects', t: 'projects', cols: ['id', 'slug', 'name', 'project_number', 'client_name', 'description', 'status', 'start_date', 'end_date', 'contract_value', 'payment_terms', 'notes'] },
   { c: 'recurring', t: 'recurring_items', cols: ['id', 'kind', 'name', 'project_id', 'amount', 'due_day', 'start_month', 'end_month', 'category', 'recipient', 'notes'] },
-  { c: 'invoices', t: 'invoices', cols: ['id', 'project_id', 'invoice_number', 'invoice_date', 'due_date', 'amount', 'tax_amount', 'tds_amount', 'status', 'notes'] },
+  { c: 'invoices', t: 'invoices', cols: ['id', 'project_id', 'invoice_number', 'invoice_date', 'due_date', 'amount', 'tax_amount', 'tds_amount', 'status', 'notes', 'details'] },
   { c: 'expenses', t: 'expenses', cols: ['id', 'date', 'title', 'category', 'amount', 'expense_type', 'project_id', 'paid_by_member_id', 'purchased_by_member_id', 'is_asset', 'payment_method', 'recipient', 'reference', 'description', 'recurring_id', 'recurring_month'] },
   { c: 'income', t: 'income', cols: ['id', 'date', 'type', 'amount', 'project_id', 'invoice_id', 'payment_method', 'reference', 'description', 'notes', 'recurring_id', 'recurring_month'] },
   { c: 'reimbursements', t: 'reimbursements', cols: ['id', 'expense_id', 'amount', 'paid_date', 'payment_method', 'reference', 'notes'] },

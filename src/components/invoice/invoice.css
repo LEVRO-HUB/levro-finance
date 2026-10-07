@@ -1,0 +1,121 @@
+/* The Levrotec invoice. Sizes are in mm / pt so the on-screen preview and the
+   printed PDF are the same document. Colours are fixed: an invoice must look
+   the same whichever app theme the person creating it uses. */
+.lv-inv {
+  width: 210mm; background: #fff; font-family: "Inter", "DejaVu Sans", sans-serif; color: #111827; font-size: 10pt; line-height: 1.5; -webkit-print-color-adjust: exact; print-color-adjust: exact;
+  & * { box-sizing: border-box; margin: 0; padding: 0; }
+  .page { width: 210mm; min-height: 297mm; display: flex; flex-direction: column; background: #fff; }
+  .num { font-variant-numeric: tabular-nums; }
+
+  /* the only strong element on the page */
+  .head { background: #000; color: #fff; padding: 9mm 18mm; display: flex; justify-content: space-between; align-items: center; }
+  .brand { display: flex; align-items: center; gap: 4.5mm; min-width: 0; }
+  .brand img { height: 15mm; width: auto; display: block; }
+  .brand h1 { white-space: nowrap; font-size: 15pt; font-weight: 700; letter-spacing: .04em; line-height: 1.15; }
+  .brand p { margin-top: 1.3mm; white-space: nowrap; font-size: 7pt; color: #aab4c5; }
+  .doc { text-align: right; }
+  .doc .word { font-size: 16pt; font-weight: 600; letter-spacing: .22em; margin-right: -.22em; line-height: 1.1; }
+  .doc .no { margin-top: 1.8mm; font-size: 8.4pt; color: #aab4c5; white-space: nowrap; }
+
+  .flow { width: 100%; border-collapse: collapse; flex: 1; }
+  .flow > thead > tr > td.gap { height: 11mm; padding: 0; }
+  .flow > tfoot > tr > td.gap { height: 8mm; padding: 0; }
+  .flow > tbody > tr > td { padding: 0; vertical-align: top; }
+  .body { padding: 0 18mm; }
+  .brand .contact { margin-top: 1.1mm; font-size: 6.8pt; color: #aab4c5; white-space: nowrap; }
+  .brand .contact .sep { padding: 0 1.4mm; color: #5b6677; }
+  .to p + p { margin-top: .6mm; }
+  .label { font-size: 7pt; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; color: #6b7280; }
+  .top { display: flex; justify-content: space-between; gap: 12mm; }
+  .to { flex: 1; }
+  .to h2 { margin-top: 1.6mm; font-size: 13pt; font-weight: 700; line-height: 1.25; }
+  .to p { color: #4b5563; font-size: 9.4pt; }
+  .meta { width: 68mm; }
+  .meta div { display: flex; justify-content: space-between; gap: 4mm; padding: 1.2mm 0; font-size: 9pt; }
+  .meta dt { color: #6b7280; }
+  .meta dd { font-weight: 600; text-align: right; }
+
+  table.items { width: 100%; border-collapse: collapse; margin-top: 10mm; }
+  .items thead th { color: #6b7280; font-size: 7.2pt; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; text-align: left; padding: 2.6mm 3.5mm; white-space: nowrap; border-top: .35mm solid #111827; border-bottom: .35mm solid #111827; }
+  .items thead th:first-child, .items tbody td:first-child { padding-left: 0; }
+  .items thead th:last-child, .items tbody td:last-child { padding-right: 0; }
+  .items thead th:first-child { width: 11mm; }
+  th.r, td.r { text-align: right; }
+  .items tbody td { padding: 4mm 3.5mm; vertical-align: top; border-bottom: .25mm solid #e5e7eb; }
+  .items tbody td.n { color: #9ca3af; }
+  .items tbody .t { font-weight: 600; }
+  .items tbody .d { margin-top: .9mm; color: #6b7280; font-size: 8.7pt; max-width: 105mm; }
+  .items tbody td.amt { font-weight: 600; }
+
+  .sum { display: flex; justify-content: space-between; align-items: flex-start; gap: 12mm; margin-top: 6mm; }
+  .words { flex: 1; padding: 1.4mm 0 0; }
+  .words p { margin-top: 1mm; font-size: 9.3pt; color: #374151; }
+  .totals { width: 68mm; }
+  .totals .row { display: flex; justify-content: space-between; padding: 1.6mm 0; font-size: 9.5pt; color: #4b5563; }
+  .totals .grand { margin-top: 1.5mm; color: #111827; font-weight: 700; font-size: 12.5pt; padding: 2.8mm 0; align-items: baseline; border-top: .35mm solid #111827; border-bottom: .35mm solid #111827; }
+  .totals .grand span:first-child { font-size: 9.5pt; font-weight: 700; }
+
+  .note { margin-top: 12mm; color: #4b5563; font-size: 8.9pt; }
+  .note .label { display: block; margin-bottom: 1.2mm; }
+
+  .foot { display: flex; justify-content: space-between; align-items: flex-end; gap: 12mm; margin-top: 11mm; padding-top: 6mm; border-top: .25mm solid #e5e7eb; }
+  .pay { flex: 1; }
+  .pay dl { margin-top: 1.6mm; font-size: 8.9pt; }
+  .pay dl div { display: flex; gap: 3mm; padding: .5mm 0; }
+  .pay dt { width: 27mm; color: #6b7280; }
+  .pay dd { font-weight: 600; }
+  .sign { width: 68mm; }
+  .sign .for { font-size: 8.4pt; color: #6b7280; }
+  .sign .for b { color: #111827; font-weight: 600; }
+  .sign .space { height: 17mm; border-bottom: .3mm solid #111827; }
+  .sign .name { margin-top: 1.6mm; font-weight: 600; font-size: 9.6pt; }
+  .sign .role { font-size: 8.2pt; color: #4b5563; }
+  .sign .auth { font-size: 8.2pt; color: #6b7280; }
+
+  .conf { margin: 0 18mm; font-size: 7.2pt; color: #9ca3af; line-height: 1.45; }
+  .strip { margin: 5mm 18mm 0; padding: 3.2mm 0 9mm; flex-wrap: wrap; border-top: .25mm solid #d1d5db; color: #6b7280; display: flex; justify-content: space-between; gap: 6mm; font-size: 7.8pt; }
+  .strip b { color: #111827; font-weight: 600; }
+  .strip .sep { color: #d1d5db; padding: 0 1.8mm; }
+  .ph { color: #b45309; font-weight: 600; }
+  .blank { display: inline-block; width: 52mm; border-bottom: .25mm dotted #9aa5b5; height: 4.2mm; }
+  .note .lines span { display: block; height: 6mm; border-bottom: .25mm dotted #9aa5b5; }
+
+  /* alignment pass: one left edge, one right-hand column (68mm), shared baselines */
+  .top { align-items: flex-start; }
+  .meta div:first-child { padding-top: 0; }
+  .meta dt, .meta dd { line-height: 1.35; }
+  .to .label, .meta div:first-child { line-height: 1.35; }
+  table.items { table-layout: fixed; }
+  .items thead th:nth-child(1) { width: 11mm; }
+  .items thead th:nth-child(3) { width: 13mm; }
+  .items thead th:nth-child(4) { width: 25mm; }
+  .items thead th:nth-child(5) { width: 28mm; }
+  .items tbody .d { max-width: none; }
+  .sum { align-items: flex-start; }
+  .words { padding-top: 1.6mm; }
+  .words .label { display: block; line-height: 1.35; }
+  .foot { align-items: stretch; }
+  .pay .label, .sign .for { display: block; line-height: 1.35; }
+  .sign .for { font-size: 7pt; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; color: #6b7280; }
+  .sign .for b { color: #6b7280; font-weight: 600; }
+  .sign { display: flex; flex-direction: column; }
+  .sign .space { flex: 1; height: auto; min-height: 14mm; }
+  .pay dl { margin-top: 2mm; }
+  .pay dl div { align-items: flex-end; padding: 0; height: 6mm; }
+  .pay dt { line-height: 1.2; padding-bottom: .6mm; }
+  .pay dd { flex: 1; display: flex; }
+  .blank { flex: 1; width: auto; height: 0; margin-bottom: .9mm; }
+  .strip { align-items: center; }
+}
+
+/* Printing: only the invoice goes to paper / PDF, edge to edge on A4. */
+#print-root { display: none; }
+@media print {
+  @page { size: A4; margin: 0; }
+  html, body { background: #fff !important; height: auto !important; }
+  #root { display: none !important; }
+  #print-root { display: block !important; }
+  #print-root .lv-inv .page { min-height: 296mm; }
+  .lv-inv .items tr, .lv-inv .keep { break-inside: avoid; page-break-inside: avoid; }
+  .lv-inv .items thead { display: table-header-group; }
+}
