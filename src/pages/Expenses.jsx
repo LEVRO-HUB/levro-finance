@@ -12,7 +12,6 @@ import { groupTotals, sum } from '../calculations/finance'
 import { RANGE_PRESETS } from '../lib/dates'
 import { formatCurrency } from '../lib/format'
 
-const THIS_MONTH = { preset: 'this_month', from: '', to: '' }
 
 export function Expenses() {
   const modals = useRecordModals()
@@ -20,7 +19,7 @@ export function Expenses() {
   // arriving from a link (a member, project or category) shows all dates, not just this month
   const linked = filtersFromParams(params, ['category', 'project', 'paidBy'])
   const initial = Object.keys(linked).length ? { ...linked, range: DEFAULT_RANGE } : undefined
-  const [view, setView] = useState({ rows: [], preset: 'this_month' })
+  const [view, setView] = useState({ rows: [], preset: 'all' })
   const stats = useMemo(() => ({
     total: sum(view.rows),
     project: sum(view.rows.filter((e) => e.project_id)),
@@ -48,7 +47,7 @@ export function Expenses() {
         </Card>
       </div>
 
-      <ExpensesPanel key={params.toString()} initial={initial} modals={modals} defaultRange={THIS_MONTH} onFiltered={(rows, preset) => setView({ rows, preset })} />
+      <ExpensesPanel key={params.toString()} initial={initial} modals={modals} onFiltered={(rows, preset) => setView({ rows, preset })} />
       {modals.element}
     </div>
   )

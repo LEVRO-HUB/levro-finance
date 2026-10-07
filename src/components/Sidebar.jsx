@@ -1,7 +1,7 @@
 import { NavLink } from 'react-router-dom'
 import {
   LayoutDashboard, Briefcase, Receipt, Users, HandCoins, Wallet, ArrowLeftRight,
-  FileText, Settings, FileSpreadsheet, Banknote, Armchair, BarChart3, CalendarClock,
+  FileText, Settings, FileSpreadsheet, Banknote, Armchair, BarChart3, CalendarClock, CalendarCheck,
 } from 'lucide-react'
 
 export const NAV_SECTIONS = [
@@ -24,6 +24,7 @@ export const NAV_SECTIONS = [
       { to: '/contributions', label: 'Contributions & Repayments', icon: HandCoins },
       { to: '/payouts', label: 'Pay Out', icon: Wallet },
       { to: '/bills', label: 'Monthly Bills', icon: CalendarClock },
+      { to: '/monthly-charges', label: 'Monthly Charges', icon: CalendarCheck },
     ],
   },
   { label: 'INSIGHTS', items: [{ to: '/reports', label: 'Reports', icon: BarChart3 }] },
