@@ -74,7 +74,7 @@
   --color-cyan-700: #67e8f9;
 }
 
-:root { color-scheme: dark; }
+:root { color-scheme: dark; --levro-css: 2; }
 
 html, body, #root { height: 100%; }
 

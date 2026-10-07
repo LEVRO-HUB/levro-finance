@@ -4,8 +4,10 @@
   Referrer-Policy: strict-origin-when-cross-origin
   Permissions-Policy: camera=(), microphone=(), geolocation=()
 
+# Short cache on purpose: if a phone catches the site mid-update and is handed the
+# wrong file for an asset, the mistake clears itself within minutes instead of sticking.
 /assets/*
-  Cache-Control: public, max-age=31536000, immutable
+  Cache-Control: public, max-age=300, must-revalidate
 
 /index.html
   Cache-Control: no-cache
