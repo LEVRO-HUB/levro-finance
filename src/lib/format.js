@@ -40,3 +40,24 @@ export function todayISO() {
   const get = (type) => parts.find((p) => p.type === type).value
   return `${get('year')}-${get('month')}-${get('day')}`
 }
+
+export function formatSize(bytes) {
+  if (!bytes) return '—'
+  const kb = bytes / 1024
+  return kb < 1024 ? `${Math.max(kb, 1).toFixed(0)} KB` : `${(kb / 1024).toFixed(1)} MB`
+}
+
+export function formatDateTime(value) {
+  if (!value) return ''
+  return new Date(value).toLocaleString('en-IN', {
+    day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Kolkata',
+  })
+}
+
+export function slugify(text) {
+  return String(text ?? '').toLowerCase().normalize('NFKD').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'project'
+}
+
+export function initials(name) {
+  return String(name ?? '').split(/\s+/).filter(Boolean).slice(0, 2).map((p) => p[0].toUpperCase()).join('') || '?'
+}

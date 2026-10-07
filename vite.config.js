@@ -3,7 +3,8 @@ import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 
 export default defineConfig({
-  // Served from https://levro-hub.github.io/levro-finance/ by default.
-  base: '/levro-finance/',
+  // Served from the site root (https://finance.levrotec.com/ in production,
+  // http://localhost:5173/ in development).
+  base: '/',
   plugins: [react(), tailwindcss()],
 })

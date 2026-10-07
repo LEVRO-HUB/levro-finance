@@ -10,50 +10,38 @@ React 19 + Vite + Tailwind CSS v4 + react-router + lucide-react, Supabase
 (Postgres + Auth + Storage). No build backend of its own — the frontend talks
 to Supabase directly.
 
-## Setup
+## How it runs
 
-1. **Supabase project**: this app is already configured to use the
-   `Levro Finance` project (`lsojfyvyjheromealcro.supabase.co`) set up
-   earlier in this conversation.
-2. **Run `schema.sql`** in that project's SQL Editor (if not already run)
-   — creates every table (including the new `members` columns, `recipient`
-   on expenses, `clients`) and RLS policies. Safe to re-run.
-3. **Storage bucket**: Dashboard → **Storage** → **New bucket** → name it
-   `documents`, keep it **private**. Needed for receipts, project documents,
-   and invoice files.
-4. **Auth**: public sign-up should already be disabled and your team invited
-   from the earlier setup. Invite anyone new from **Authentication → Users →
-   Add user → Invite**.
-5. **Local dev**:
-   ```bash
-   npm install
-   cp .env.example .env   # fill in VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY
-   npm run dev
-   ```
+**Shared mode (Supabase).** With `VITE_SUPABASE_URL` and
+`VITE_SUPABASE_PUBLISHABLE_KEY` set (copy `.env.example` to `.env.local`), the
+app requires sign-in and reads/writes the Levrotec Finance Tracker database.
+Only the public URL and publishable key ever go in the frontend; the
+service-role key is never used here.
 
-## Data model
+**Local demo mode.** With those variables empty, the app runs entirely in the
+browser with demo data and no sign-in.
 
-See [`schema.sql`](./schema.sql). Key design points:
+```bash
+npm install
+npm run dev      # http://localhost:5173/
+npm test         # calculation + scenario tests (database tests need PG_TEST_URL, see tests/support/README.md)
+npm run build
+```
 
-- `expenses.expense_type` (`project_expense` | `company_expense` |
-  `company_purchase`) and `project_id` are linked by a check constraint — a
-  project expense must have a project, nothing else may.
-- A personally-paid expense (`paid_by_member_id` set) is a **Contribution**:
-  it is never itself company cash out. A repayment goes into
-  `reimbursement_payments`, capped by trigger at the expense amount, and is
-  never a new expense — see `src/lib/finance.js` for the calculation.
-- Invoice payment status is always **calculated** (`invoiceStatus()` in
-  `src/lib/finance.js`) from `amount` vs. `sum(invoice_payments)` vs.
-  `due_date` — never a stored free-choice field.
-- `documents` belongs to a project and/or an invoice; files live in the
-  `documents` Storage bucket, accessed only via short-lived signed URLs.
+## Architecture
 
-## Known gaps (first version)
+```
+pages / panels / forms
+   -> src/services/api.js            business rules + validation (one service API)
+   -> adapter                        local: src/services/localAdapter.js
+                                     shared: src/services/supabase/adapter.js (row-level writes, paged reads)
+   -> src/services/supabase/gateway.js   the only file that calls Supabase for finance data
+   -> Postgres (constraints, triggers, RLS) + private Storage bucket `documents`
+```
 
-- Project "Payments" and "Activity" tabs from the original reference design
-  aren't separate tabs yet — payments live inside the Invoices tab, and
-  there's no audit/activity log yet.
-- No charts library — the dashboard uses simple CSS bars instead of a line
-  chart for income vs. expenses over time.
-- Settings page is a stub (no editable categories/roles yet).
-- Expense categories are a fixed list, not yet user-editable.
+- `src/calculations/finance.js` - single source of truth for every number; nothing calculated is stored.
+- `supabase/migrations/` - the schema exactly as applied to the project.
+- `supabase/functions/invite-user/` - admin-only invite (holds the service-role key server-side).
+- `src/auth/` - email + password sign-in, invite/reset password, inactive-account gate.
+- Roles: `admin` (everything) and `member` (view, create, edit; no deletes, settings, lists or user access). Enforced by RLS.
+- Unused leftovers from the first version: `src/hooks/useSupabaseTable.js`, `src/lib/finance.js`, `schema.sql`, `migrate_existing_db.sql`.

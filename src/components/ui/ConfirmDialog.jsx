@@ -3,7 +3,7 @@ import { Modal } from './Modal'
 import { Button } from './Button'
 import { useToast, describeError } from './Toast'
 
-export function ConfirmDialog({ open, onClose, onConfirm, title = 'Delete this entry?', description }) {
+export function ConfirmDialog({ open, onClose, onConfirm, title = 'Delete this entry?', description, confirmLabel = 'Delete', successMessage }) {
   const toast = useToast()
   const [working, setWorking] = useState(false)
 
@@ -11,9 +11,10 @@ export function ConfirmDialog({ open, onClose, onConfirm, title = 'Delete this e
     setWorking(true)
     try {
       await onConfirm()
+      if (successMessage) toast.success(successMessage)
       onClose()
     } catch (err) {
-      toast.error(`Delete failed: ${describeError(err)}`)
+      toast.error(describeError(err))
     } finally {
       setWorking(false)
     }
@@ -24,7 +25,7 @@ export function ConfirmDialog({ open, onClose, onConfirm, title = 'Delete this e
       {description && <p className="mb-4 text-sm text-slate-500">{description}</p>}
       <div className="flex justify-end gap-2">
         <Button variant="secondary" onClick={onClose} disabled={working}>Cancel</Button>
-        <Button variant="danger" onClick={handleConfirm} disabled={working}>{working ? 'Deleting…' : 'Delete'}</Button>
+        <Button variant="danger" onClick={handleConfirm} disabled={working}>{working ? 'Working…' : confirmLabel}</Button>
       </div>
     </Modal>
   )
