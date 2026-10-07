@@ -9,6 +9,7 @@ import { Button } from '../ui/Button'
 import { Amount, SearchInput } from '../ui/misc'
 import { DateRangeFilter, FilterBar, FilterSelect } from '../ui/Filters'
 import { DEFAULT_RANGE, is, matches, useFilters } from '../../hooks/useFilters'
+import { InvoiceLink, MemberLink, ProjectLink } from '../ui/links'
 import { useData } from '../../store/DataProvider'
 import { LEDGER_TYPES, sum } from '../../calculations/finance'
 import { REIMBURSEMENT_STATUSES } from '../../services/schema'
@@ -38,9 +39,9 @@ function Detail({ row, onClose }) {
 }
 
 // The unified transaction ledger. `projectId` scopes it to one project (and hides that filter).
-export function LedgerPanel({ projectId, modals, initialSearch = '' }) {
+export function LedgerPanel({ projectId, modals, initialSearch = '', initial }) {
   const { data, ledger, sortedProjects, projectName, memberName, categoryNames, methodNames } = useData()
-  const { filters, set, reset, activeCount, range } = useFilters({ q: initialSearch, range: DEFAULT_RANGE, flow: 'All', type: 'All', category: 'All', project: 'All', member: 'All', source: 'All', method: 'All', reimb: 'All' })
+  const { filters, set, reset, activeCount, range } = useFilters({ q: initialSearch, range: DEFAULT_RANGE, flow: 'All', type: 'All', category: 'All', project: 'All', member: 'All', source: 'All', method: 'All', reimb: 'All' }, initial)
   const [detail, setDetail] = useState(null)
 
   const scoped = useMemo(() => (projectId ? ledger.filter((r) => r.project_id === projectId) : ledger), [ledger, projectId])
@@ -104,8 +105,8 @@ export function LedgerPanel({ projectId, modals, initialSearch = '' }) {
               <Td><span className={r.direction === 'in' ? 'text-emerald-700' : r.direction === 'out' ? 'text-red-600' : 'text-blue-700'}>{r.type}</span>{r.reimbursement_status && <StatusBadge status={r.reimbursement_status} className="ml-2" />}</Td>
               <Td>{r.category}</Td>
               <Td right><Amount direction={r.direction} value={`${sign(r)}${formatCurrency(r.amount)}`} className="font-medium" /></Td>
-              {!projectId && <Td>{projectName(r.project_id) ?? '—'}</Td>}
-              <Td>{memberName(r.member_id) ?? '—'}</Td>
+              {!projectId && <Td><ProjectLink id={r.project_id} /></Td>}
+              <Td><MemberLink id={r.member_id} /></Td>
               <Td>{r.payment_method || '—'}</Td>
               <Td><StatusBadge status={r.payment_source} /></Td>
               <Td right><KebabMenu items={menu(r)} /></Td>

@@ -8,6 +8,7 @@ import { SearchInput } from '../ui/misc'
 import { DateRangeFilter, FilterBar, FilterSelect } from '../ui/Filters'
 import { useFileActions } from '../forms/DocumentModals'
 import { DEFAULT_RANGE, is, matches, useFilters } from '../../hooks/useFilters'
+import { InvoiceLink, MemberLink, ProjectLink } from '../ui/links'
 import { useData } from '../../store/DataProvider'
 import { paymentSource, reimbursementState, sum } from '../../calculations/finance'
 import { EXPENSE_TYPES, REIMBURSEMENT_STATUSES } from '../../services/schema'
@@ -17,10 +18,10 @@ import { formatCurrency, formatDate } from '../../lib/format'
 export const expenseTypeLabel = (id) => EXPENSE_TYPES.find((t) => t.id === id)?.label ?? id
 
 // variant: 'all' | 'payout' (company-paid to a recipient) | 'purchase' (assets register)
-export function ExpensesPanel({ projectId, variant = 'all', modals, defaultRange = DEFAULT_RANGE, onFiltered }) {
+export function ExpensesPanel({ projectId, variant = 'all', modals, defaultRange = DEFAULT_RANGE, onFiltered, initial }) {
   const { data, sortedProjects, projectName, memberName, categoryNames } = useData()
   const files = useFileActions()
-  const { filters, set, reset, activeCount, range } = useFilters({ q: '', range: defaultRange, category: 'All', project: 'All', type: 'All', paidBy: 'All', source: 'All', reimb: 'All' })
+  const { filters, set, reset, activeCount, range } = useFilters({ q: '', range: defaultRange, category: 'All', project: 'All', type: 'All', paidBy: 'All', source: 'All', reimb: 'All' }, initial)
 
   const scoped = useMemo(() => data.expenses.filter((e) =>
     (!projectId || e.project_id === projectId) &&
@@ -78,18 +79,18 @@ export function ExpensesPanel({ projectId, variant = 'all', modals, defaultRange
               ]} />
             )
             const title = <div className="flex items-center gap-1.5"><span className="max-w-[240px] truncate">{e.title}</span>{receipt(e)}</div>
-            const project = !projectId && <Td>{projectName(e.project_id) ?? '—'}</Td>
+            const project = !projectId && <Td><ProjectLink id={e.project_id} /></Td>
             if (variant === 'payout') return (
               <tr key={e.id}><Td>{formatDate(e.date)}</Td><Td className="font-medium text-slate-900">{e.recipient}</Td><Td>{title}</Td><Td>{e.category}</Td><Td right>{formatCurrency(e.amount)}</Td>{project}<Td>{e.payment_method || '—'}</Td><Td right>{menu}</Td></tr>
             )
             if (variant === 'purchase') return (
               <tr key={e.id}><Td>{formatDate(e.date)}</Td><Td className="font-medium text-slate-900">{title}</Td><Td>{e.category}</Td><Td right>{formatCurrency(e.amount)}</Td><Td>{e.recipient || '—'}</Td>
-                <Td>{memberName(e.purchased_by_member_id) ?? memberName(e.paid_by_member_id) ?? '—'}</Td><Td><StatusBadge status={e.source} /></Td>{project}<Td>{e.is_asset ? 'Yes' : 'No'}</Td><Td right>{menu}</Td></tr>
+                <Td><MemberLink id={e.purchased_by_member_id ?? e.paid_by_member_id} /></Td><Td><StatusBadge status={e.source} /></Td>{project}<Td>{e.is_asset ? 'Yes' : 'No'}</Td><Td right>{menu}</Td></tr>
             )
             return (
               <tr key={e.id}>
                 <Td>{formatDate(e.date)}</Td><Td className="font-medium text-slate-900">{title}</Td><Td>{expenseTypeLabel(e.expense_type)}</Td><Td>{e.category}</Td><Td right>{formatCurrency(e.amount)}</Td>{project}
-                <Td>{memberName(e.paid_by_member_id) ?? 'Company'}</Td><Td><StatusBadge status={e.source} /></Td>
+                <Td><MemberLink id={e.paid_by_member_id} fallback="Company" to="contributions" /></Td><Td><StatusBadge status={e.source} /></Td>
                 <Td>{e.reimb.applicable ? <span className="inline-flex items-center gap-2"><StatusBadge status={e.reimb.status} />{e.reimb.owed > 0 && <span className="text-xs tabular-nums text-amber-600">{formatCurrency(e.reimb.owed)} due</span>}</span> : <span className="text-slate-300">—</span>}</Td>
                 <Td right>{menu}</Td>
               </tr>

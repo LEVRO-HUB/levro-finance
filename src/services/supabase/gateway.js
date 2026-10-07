@@ -43,6 +43,16 @@ export function createSupabaseGateway(supabase) {
       const data = check(await supabase.storage.from(BUCKET).remove([path]))
       if (!data?.length) throw denied('delete this file')
     },
+    // Live updates: tells the app which table another user just changed.
+    // Row contents are never taken from the event — the app re-reads through RLS.
+    subscribe(onChange) {
+      if (!supabase.channel) return () => {}
+      const channel = supabase
+        .channel(`finance-live-${Math.random().toString(36).slice(2)}`)
+        .on('postgres_changes', { event: '*', schema: 'public' }, (payload) => onChange(payload.table))
+        .subscribe()
+      return () => { supabase.removeChannel(channel) }
+    },
     async signedUrl(path, { download = false, expiresIn = 120 } = {}) {
       return check(await supabase.storage.from(BUCKET).createSignedUrl(path, expiresIn, download ? { download } : undefined)).signedUrl
     },

@@ -7,6 +7,7 @@ import { SearchInput } from '../ui/misc'
 import { FilterBar, FilterSelect } from '../ui/Filters'
 import { useFileActions, VersionHistoryModal } from '../forms/DocumentModals'
 import { is, matches, useFilters } from '../../hooks/useFilters'
+import { InvoiceLink, MemberLink, ProjectLink } from '../ui/links'
 import { useData } from '../../store/DataProvider'
 import { DOC_CATEGORIES, docCategoryLabel } from '../../services/schema'
 import { formatDate, formatSize } from '../../lib/format'
@@ -45,7 +46,7 @@ export function DocumentsPanel({ projectId, modals }) {
             <tr key={d.id} className="hover:bg-slate-50/60">
               <Td className="font-medium text-slate-900"><div className="flex items-center gap-2"><FileText size={15} className="flex-shrink-0 text-red-400" /><span className="max-w-[260px] truncate" title={d.current.file_name}>{d.name}</span></div></Td>
               <Td>{docCategoryLabel(d.category)}</Td>
-              {!projectId && <Td>{projectName(d.project_id) ?? 'Company'}</Td>}
+              {!projectId && <Td><ProjectLink id={d.project_id} fallback="Company" tab="documents" /></Td>}
               <Td><button type="button" className="min-h-0 text-blue-600 hover:underline" onClick={() => setHistoryId(d.id)} title="Version history">v{d.current.version}.0</button></Td>
               <Td>{formatSize(d.current.file_size)}</Td>
               <Td>{formatDate(d.current.uploaded_at.slice(0, 10))}</Td>

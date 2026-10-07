@@ -1,9 +1,11 @@
 import { useMemo } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { Plus } from 'lucide-react'
 import { Button } from '../components/ui/Button'
 import { StatCard } from '../components/ui/StatCard'
 import { PageHeader } from '../components/ui/misc'
 import { PaymentsPanel } from '../components/modules/PaymentsPanel'
+import { filtersFromParams } from '../hooks/useFilters'
 import { useRecordModals } from '../components/modules/RecordModals'
 import { useData } from '../store/DataProvider'
 import { companyPosition, companySummary } from '../calculations/finance'
@@ -13,6 +15,7 @@ import { formatCurrency } from '../lib/format'
 export function Payments() {
   const { data, today } = useData()
   const modals = useRecordModals()
+  const [params] = useSearchParams()
   const s = useMemo(() => ({ all: companySummary(data), month: companySummary(data, resolveRange('this_month', {}, today)), pos: companyPosition(data, today) }), [data, today])
   return (
     <div className="space-y-4">
@@ -25,7 +28,7 @@ export function Payments() {
         <StatCard label="Project Revenue" value={formatCurrency(s.all.projectRevenue)} sub={`${formatCurrency(s.all.otherIncome)} other income`} />
         <StatCard label="Pending Receivables" value={formatCurrency(s.pos.pendingReceivables)} accent="attention" sub="contract value not yet received" />
       </div>
-      <PaymentsPanel modals={modals} />
+      <PaymentsPanel key={params.toString()} modals={modals} initial={filtersFromParams(params, ['project', 'q'])} />
       {modals.element}
     </div>
   )

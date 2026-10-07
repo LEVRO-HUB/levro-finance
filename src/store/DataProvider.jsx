@@ -15,12 +15,16 @@ import { useAuth } from '../auth/AuthProvider'
 //   otherwise           → local demo mode in this browser
 const demoSeed = () => ({ ...demoState(), meta: { ...demoState().meta, demo: true } })
 function createService() {
-  if (isSupabaseConfigured) return { api: createApi(createRemoteAdapter(createSupabaseGateway(supabase))), team: createTeamService(supabase) }
-  return { api: createApi(createLocalAdapter({ seed: demoSeed })), team: null }
+  if (isSupabaseConfigured) {
+    const adapter = createRemoteAdapter(createSupabaseGateway(supabase))
+    return { api: createApi(adapter), team: createTeamService(supabase), live: adapter }
+  }
+  return { api: createApi(createLocalAdapter({ seed: demoSeed })), team: null, live: null }
 }
 
 const READ_ONLY = new Set(['load', 'getFile', 'exportData', 'refresh'])
 const FOCUS_REFRESH_MS = 20_000
+const LIVE_DEBOUNCE_MS = 400
 const DataContext = createContext(null)
 
 export function DataProvider({ children }) {
@@ -57,6 +61,25 @@ export function DataProvider({ children }) {
     document.addEventListener('visibilitychange', onFocus)
     return () => { window.removeEventListener('focus', onFocus); document.removeEventListener('visibilitychange', onFocus) }
   }, [auth.mode, service, reload])
+
+  // Live updates: when anyone changes a record, the database tells every open
+  // session which table changed; we re-read that table and every page recalculates.
+  const refreshProfile = auth.refreshProfile
+  useEffect(() => {
+    if (auth.mode !== 'supabase' || !auth.user?.id || !service.live) return
+    let timer = null
+    let profileChanged = false
+    const stop = service.live.subscribe((table) => {
+      service.live.invalidate(table)
+      if (table === 'profiles') profileChanged = true
+      clearTimeout(timer)
+      timer = setTimeout(() => {
+        if (profileChanged) { profileChanged = false; refreshProfile?.() }
+        reload()
+      }, LIVE_DEBOUNCE_MS)
+    })
+    return () => { clearTimeout(timer); stop() }
+  }, [auth.mode, auth.user?.id, service, reload, refreshProfile])
 
   // Every mutation refreshes the shared snapshot (success or failure), so all
   // pages recalculate from the same records at the same moment.

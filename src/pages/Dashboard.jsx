@@ -22,7 +22,7 @@ function greeting() {
 }
 
 export function Dashboard() {
-  const { data, ledger, today, projectName } = useData()
+  const { data, ledger, today, projectName, projectById } = useData()
   const modals = useRecordModals()
   const [period, setPeriod] = useState('this_month')
   const [addOpen, setAddOpen] = useState(false)
@@ -74,9 +74,9 @@ export function Dashboard() {
         <StatCard label="Pending Repayment" value={formatCurrency(pos.pendingReimbursements)} icon={HandCoins} accent="attention" sub="Levrotec owes members" to="/contributions" />
       </div>
       <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
-        <StatCard compact label="Project Revenue" value={formatCurrency(v.cur.projectRevenue)} sub="in this period" />
-        <StatCard compact label="Project Costs" value={formatCurrency(v.cur.projectCosts)} sub="in this period" />
-        <StatCard compact label="Company Expenses" value={formatCurrency(v.cur.companyExpenses)} sub="non-project, this period" />
+        <StatCard compact label="Project Revenue" value={formatCurrency(v.cur.projectRevenue)} sub="in this period" to="/payments" />
+        <StatCard compact label="Project Costs" value={formatCurrency(v.cur.projectCosts)} sub="in this period" to="/expenses" />
+        <StatCard compact label="Company Expenses" value={formatCurrency(v.cur.companyExpenses)} sub="non-project, this period" to="/expenses?project=__company__" />
         <StatCard compact label="Pending Receivables" value={formatCurrency(pos.pendingReceivables)} icon={Briefcase} accent="attention" sub="contract value not yet received" to="/projects" />
         <StatCard compact label="Members Owe Levrotec" value={formatCurrency(pos.membersOweCompany)} icon={UserMinus} sub="outstanding advances" to="/contributions?tab=advances" />
         <StatCard compact label="Company Reserve" value={formatCurrency(reserve.current)} icon={Landmark} accent={reserve.current >= 0 ? 'neutral' : 'negative'} sub="cash position now" to="/reports?tab=reserve" />
@@ -112,10 +112,10 @@ export function Dashboard() {
           {recent.length === 0 ? <EmptyState title="No transactions yet" /> : (
             <ul className="space-y-1.5">
               {recent.map((t) => (
-                <li key={t.id} className="flex items-center justify-between gap-3 rounded-lg bg-slate-50 px-3 py-2">
+                <li key={t.id}><Link to={`/transactions?q=${encodeURIComponent(t.code ?? t.description)}`} className="flex items-center justify-between gap-3 rounded-lg bg-slate-50 px-3 py-2 hover:bg-slate-100">
                   <div className="min-w-0"><p className="truncate text-sm font-medium text-slate-900">{t.description}</p><p className="truncate text-xs text-slate-400">{t.type}{t.project_id ? ` · ${projectName(t.project_id)}` : ''} · {relativeDate(t.date, today)}</p></div>
                   <Amount direction={t.direction} className="flex-shrink-0 text-sm font-semibold" value={`${t.direction === 'in' ? '+' : t.direction === 'out' ? '−' : ''}${formatCurrency(t.amount)}`} />
-                </li>
+                </Link></li>
               ))}
             </ul>
           )}
@@ -125,7 +125,7 @@ export function Dashboard() {
       <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-3">
         <Card title="Monthly Income vs Expenses"><IncomeExpenseBars rows={v.trend} /></Card>
         <Card title="Expense Categories">
-          {v.categories.length === 0 ? <EmptyState title="No expenses in this period" /> : <DonutWithLegend groups={v.categories} max={6} />}
+          {v.categories.length === 0 ? <EmptyState title="No expenses in this period" /> : <DonutWithLegend groups={v.categories} max={6} linkTo={(c) => `/expenses?category=${encodeURIComponent(c)}`} />}
         </Card>
         <Card title="Company Reserve" action={<Link to="/settings" className="text-xs font-medium text-blue-600 hover:underline">Set opening</Link>}>
           <dl className="space-y-2 text-sm">
@@ -143,10 +143,10 @@ export function Dashboard() {
           {recentPayments.length === 0 ? <EmptyState icon={Wallet} title="No payments received yet" /> : (
             <ul className="divide-y divide-slate-100">
               {recentPayments.map((t) => (
-                <li key={t.id} className="flex items-center justify-between gap-3 py-2">
+                <li key={t.id}><Link to={t.project_id && projectById.get(t.project_id) ? `/projects/${projectById.get(t.project_id).slug}/payments` : `/payments?q=${encodeURIComponent(t.code ?? '')}`} className="flex items-center justify-between gap-3 py-2 hover:bg-slate-50">
                   <div className="min-w-0"><p className="truncate text-sm font-medium text-slate-900">{t.description}</p><p className="text-xs text-slate-400">{projectName(t.project_id) ?? t.type} · {t.payment_method} · {relativeDate(t.date, today)}</p></div>
                   <span className="text-sm font-semibold tabular-nums text-emerald-600">+{formatCurrency(t.amount)}</span>
-                </li>
+                </Link></li>
               ))}
             </ul>
           )}

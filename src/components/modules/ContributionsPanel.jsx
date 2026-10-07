@@ -7,6 +7,7 @@ import { KebabMenu } from '../ui/KebabMenu'
 import { SearchInput } from '../ui/misc'
 import { DateRangeFilter, FilterBar, FilterSelect } from '../ui/Filters'
 import { DEFAULT_RANGE, is, matches, useFilters } from '../../hooks/useFilters'
+import { InvoiceLink, MemberLink, ProjectLink } from '../ui/links'
 import { useData } from '../../store/DataProvider'
 import { reimbursementState, sum } from '../../calculations/finance'
 import { REIMBURSEMENT_STATUSES } from '../../services/schema'
@@ -14,9 +15,9 @@ import { inRange } from '../../lib/dates'
 import { formatCurrency, formatDate } from '../../lib/format'
 
 // view: 'contributions' (personally-paid expenses) | 'repayments' | 'advances'
-export function ContributionsPanel({ view = 'contributions', projectId, modals }) {
+export function ContributionsPanel({ view = 'contributions', projectId, modals, initial }) {
   const { data, sortedProjects, projectName, memberName } = useData()
-  const { filters, set, reset, activeCount, range } = useFilters({ q: '', range: DEFAULT_RANGE, member: 'All', project: 'All', status: 'All', direction: 'All' })
+  const { filters, set, reset, activeCount, range } = useFilters({ q: '', range: DEFAULT_RANGE, member: 'All', project: 'All', status: 'All', direction: 'All' }, initial)
   const expenseById = useMemo(() => new Map(data.expenses.map((e) => [e.id, e])), [data.expenses])
   const byDate = (key) => (a, b) => (a[key] === b[key] ? String(b.created_at).localeCompare(String(a.created_at)) : a[key] < b[key] ? 1 : -1)
   const projectMatch = (id) => filters.project === 'All' || (filters.project === '__company__' ? !id : id === filters.project)
@@ -58,8 +59,8 @@ export function ContributionsPanel({ view = 'contributions', projectId, modals }
         <Table more={page.more} columns={['Date', 'Member', 'Purpose', ...(projectId ? [] : ['Project']), { label: 'Amount', align: 'right' }, { label: 'Reimbursed', align: 'right' }, { label: 'Levrotec Owes', align: 'right' }, 'Status', '']}>
           {page.visible.map((c) => (
             <tr key={c.id}>
-              <Td>{formatDate(c.date)}</Td><Td className="font-medium text-slate-900">{memberName(c.paid_by_member_id)}</Td><Td className="max-w-[240px] truncate">{c.title}</Td>
-              {!projectId && <Td>{projectName(c.project_id) ?? 'Company'}</Td>}
+              <Td>{formatDate(c.date)}</Td><Td className="font-medium text-slate-900"><MemberLink id={c.paid_by_member_id} /></Td><Td className="max-w-[240px] truncate">{c.title}</Td>
+              {!projectId && <Td><ProjectLink id={c.project_id} fallback="Company" /></Td>}
               <Td right>{formatCurrency(c.amount)}</Td><Td right className="text-emerald-600">{formatCurrency(c.st.reimbursed)}</Td>
               <Td right className={c.st.owed > 0 ? 'font-medium text-amber-600' : ''}>{formatCurrency(c.st.owed)}</Td><Td><StatusBadge status={c.st.status} /></Td>
               <Td right><KebabMenu items={[
@@ -73,8 +74,8 @@ export function ContributionsPanel({ view = 'contributions', projectId, modals }
         <Table more={page.more} columns={['ID', 'Date', 'Member', 'For Expense', ...(projectId ? [] : ['Project']), 'Method', 'Reference', { label: 'Amount', align: 'right' }, '']}>
           {page.visible.map((r) => (
             <tr key={r.id}>
-              <Td className="font-mono text-xs text-slate-500">{r.code}</Td><Td>{formatDate(r.paid_date)}</Td><Td className="font-medium text-slate-900">{memberName(r.member_id) ?? '—'}</Td>
-              <Td className="max-w-[240px] truncate">{r.expense?.title ?? '—'}</Td>{!projectId && <Td>{projectName(r.expense?.project_id) ?? 'Company'}</Td>}
+              <Td className="font-mono text-xs text-slate-500">{r.code}</Td><Td>{formatDate(r.paid_date)}</Td><Td className="font-medium text-slate-900"><MemberLink id={r.member_id} /></Td>
+              <Td className="max-w-[240px] truncate">{r.expense?.title ?? '—'}</Td>{!projectId && <Td><ProjectLink id={r.expense?.project_id} fallback="Company" /></Td>}
               <Td>{r.payment_method || '—'}</Td><Td>{r.reference || '—'}</Td><Td right className="text-emerald-600">{formatCurrency(r.amount)}</Td>
               <Td right><KebabMenu items={[modals.canDelete && { label: 'Delete repayment', danger: true, onClick: () => modals.open({ kind: 'reimbursement', action: 'delete', record: r }) }]} /></Td>
             </tr>
@@ -84,7 +85,7 @@ export function ContributionsPanel({ view = 'contributions', projectId, modals }
         <Table more={page.more} columns={['ID', 'Date', 'Member', 'Type', 'Purpose / Notes', 'Method', { label: 'Amount', align: 'right' }, '']}>
           {page.visible.map((a) => (
             <tr key={a.id}>
-              <Td className="font-mono text-xs text-slate-500">{a.code}</Td><Td>{formatDate(a.date)}</Td><Td className="font-medium text-slate-900">{memberName(a.member_id)}</Td>
+              <Td className="font-mono text-xs text-slate-500">{a.code}</Td><Td>{formatDate(a.date)}</Td><Td className="font-medium text-slate-900"><MemberLink id={a.member_id} /></Td>
               <Td>{a.direction === 'given' ? 'Advance given' : 'Returned by member'}</Td><Td className="max-w-[260px] truncate">{a.notes || '—'}</Td><Td>{a.payment_method || '—'}</Td>
               <Td right className={a.direction === 'given' ? 'text-red-500' : 'text-emerald-600'}>{a.direction === 'given' ? '−' : '+'}{formatCurrency(a.amount)}</Td>
               <Td right><KebabMenu items={[{ label: 'Edit', onClick: () => modals.open({ kind: 'advance', action: 'edit', record: a }) }, modals.canDelete && { label: 'Delete', danger: true, onClick: () => modals.open({ kind: 'advance', action: 'delete', record: a }) }]} /></Td>

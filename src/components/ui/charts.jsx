@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom'
 import { formatCurrency } from '../../lib/format'
 
 export const CHART_COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#ec4899', '#84cc16', '#94a3b8']
@@ -20,7 +21,7 @@ export function DonutChart({ segments, size = 'h-32 w-32' }) {
   )
 }
 
-export function DonutWithLegend({ groups, max = 7 }) {
+export function DonutWithLegend({ groups, max = 7, linkTo }) {
   const top = groups.slice(0, max)
   const rest = groups.slice(max)
   const rows = rest.length ? [...top, { key: 'Others', amount: rest.reduce((a, g) => a + g.amount, 0), pct: rest.reduce((a, g) => a + g.pct, 0) }] : top
@@ -32,7 +33,9 @@ export function DonutWithLegend({ groups, max = 7 }) {
         {rows.map((g, i) => (
           <li key={g.key} className="flex items-center gap-2">
             <span className="h-2 w-2 flex-shrink-0 rounded-full" style={{ background: CHART_COLORS[i % CHART_COLORS.length] }} />
-            <span className="min-w-0 flex-1 truncate text-slate-600">{g.key}</span>
+            {linkTo && g.key !== 'Others'
+              ? <Link to={linkTo(g.key)} className="min-w-0 flex-1 truncate text-slate-600 hover:text-blue-600 hover:underline">{g.key}</Link>
+              : <span className="min-w-0 flex-1 truncate text-slate-600">{g.key}</span>}
             <span className="tabular-nums text-slate-900">{formatCurrency(g.amount)}</span>
             <span className="w-9 text-right tabular-nums text-slate-400">{g.pct.toFixed(0)}%</span>
           </li>

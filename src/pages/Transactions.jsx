@@ -3,6 +3,7 @@ import { ArrowDownLeft, ArrowUpRight, HandCoins } from 'lucide-react'
 import { Button } from '../components/ui/Button'
 import { PageHeader } from '../components/ui/misc'
 import { LedgerPanel } from '../components/modules/LedgerPanel'
+import { filtersFromParams } from '../hooks/useFilters'
 import { useRecordModals } from '../components/modules/RecordModals'
 
 export function Transactions() {
@@ -16,7 +17,7 @@ export function Transactions() {
         <Button variant="secondary" onClick={() => modals.open({ kind: 'expense', action: 'add' })}><ArrowUpRight size={16} /> Money Out</Button>
         <Button onClick={() => modals.open({ kind: 'income', action: 'add' })}><ArrowDownLeft size={16} /> Money In</Button>
       </PageHeader>
-      <LedgerPanel key={q} modals={modals} initialSearch={q} />
+      <LedgerPanel key={params.toString()} modals={modals} initialSearch={q} initial={filtersFromParams(params, ['project', 'member', 'type', 'category', 'flow'])} />
       {modals.element}
     </div>
   )

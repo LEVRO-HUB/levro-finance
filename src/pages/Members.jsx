@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
 import { Plus, Users as UsersIcon } from 'lucide-react'
 import { Button } from '../components/ui/Button'
 import { Modal } from '../components/ui/Modal'
@@ -41,6 +42,7 @@ function MemberForm({ member, onClose }) {
 export function Members() {
   const { data, api, can } = useData()
   const modals = useRecordModals()
+  const navigate = useNavigate()
   const { filters, set, reset, activeCount } = useFilters({ q: '', status: 'Active', designation: 'All', balance: 'All' })
   const [form, setForm] = useState(null)
   const [confirm, setConfirm] = useState(null) // { member, action: 'deactivate' | 'delete' }
@@ -74,14 +76,15 @@ export function Members() {
         <Table columns={['Name', 'Designation', 'Email', 'Phone', 'Joining Date', { label: 'Levrotec Owes', align: 'right' }, { label: 'Owes Levrotec', align: 'right' }, 'Status', '']}>
           {rows.map((m) => (
             <tr key={m.id} className={m.is_active ? '' : 'opacity-60'}>
-              <Td><div className="flex items-center gap-2.5"><Avatar name={m.name} /><span className="font-medium text-slate-900">{m.name}</span></div></Td>
+              <Td><div className="flex items-center gap-2.5"><Avatar name={m.name} /><Link to={`/transactions?member=${m.id}`} title="See this member's transactions" className="font-medium text-slate-900 hover:text-blue-600 hover:underline">{m.name}</Link></div></Td>
               <Td>{m.designation || '—'}</Td><Td>{m.email || '—'}</Td><Td>{m.phone || '—'}</Td><Td>{formatDate(m.joining_date) || '—'}</Td>
-              <Td right className={m.b.companyOwes > 0 ? 'font-medium text-amber-600' : 'text-slate-400'}>{formatCurrency(m.b.companyOwes)}</Td>
-              <Td right className={m.b.memberOwes > 0 ? 'font-medium text-red-500' : 'text-slate-400'}>{formatCurrency(m.b.memberOwes)}</Td>
+              <Td right className={m.b.companyOwes > 0 ? 'font-medium text-amber-600' : 'text-slate-400'}><Link to={`/contributions?member=${m.id}`} title="See what they paid personally" className="hover:underline">{formatCurrency(m.b.companyOwes)}</Link></Td>
+              <Td right className={m.b.memberOwes > 0 ? 'font-medium text-red-500' : 'text-slate-400'}><Link to={`/contributions?tab=advances&member=${m.id}`} title="See their advances" className="hover:underline">{formatCurrency(m.b.memberOwes)}</Link></Td>
               <Td><StatusBadge status={m.is_active ? 'Active' : 'Inactive'} /></Td>
               <Td right><KebabMenu items={[
                 can.admin && { label: 'Edit', onClick: () => setForm({ member: m }) },
                 m.b.companyOwes > 0 && { label: 'Record repayment', onClick: () => modals.open({ kind: 'reimbursement', action: 'add', memberId: m.id }) },
+                { label: 'View transactions', onClick: () => navigate(`/transactions?member=${m.id}`) },
                 { label: 'Give advance', onClick: () => modals.open({ kind: 'advance', action: 'add', memberId: m.id, direction: 'given' }) },
                 m.b.memberOwes > 0 && { label: 'Advance returned', onClick: () => modals.open({ kind: 'advance', action: 'add', memberId: m.id, direction: 'returned' }) },
                 can.admin && (m.is_active ? { label: 'Deactivate', danger: true, onClick: () => setConfirm({ member: m, action: 'deactivate' }) } : { label: 'Reactivate', onClick: () => api.setMemberActive(m.id, true) }),

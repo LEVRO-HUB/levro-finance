@@ -169,6 +169,12 @@ export function createRemoteAdapter(gateway) {
   return {
     load,
     save,
+    // A table changed elsewhere (live update): re-read just that table next load.
+    invalidate(table) {
+      if (table === 'profiles') dirty.add('profile')
+      if (table === 'app_settings' || TABLES.some((d) => d.t === table)) dirty.add(table)
+    },
+    subscribe: (onChange) => gateway.subscribe?.(onChange) ?? (() => {}),
     refresh() { for (const d of TABLES) dirty.add(d.t); dirty.add('app_settings'); dirty.add('profile') },
     files: {
       put: wrap((path, blob, contentType) => gateway.uploadFile(path, blob, contentType)),

@@ -5,6 +5,7 @@ import { Button } from '../components/ui/Button'
 import { StatCard } from '../components/ui/StatCard'
 import { PageHeader, Tabs } from '../components/ui/misc'
 import { ContributionsPanel } from '../components/modules/ContributionsPanel'
+import { filtersFromParams } from '../hooks/useFilters'
 import { useRecordModals } from '../components/modules/RecordModals'
 import { useData } from '../store/DataProvider'
 import { companyPosition, sum } from '../calculations/finance'
@@ -34,9 +35,9 @@ export function Contributions() {
         <StatCard label="Pending Repayment" value={formatCurrency(t.pending)} accent="attention" sub="Levrotec owes members" />
         <StatCard label="Members Owe Levrotec" value={formatCurrency(t.owed)} icon={UserMinus} sub="advances not yet returned" />
       </div>
-      <Tabs value={tab} onChange={(id) => setParams(id === 'contributions' ? {} : { tab: id }, { replace: true })}
+      <Tabs value={tab} onChange={(id) => setParams({ ...(id === 'contributions' ? {} : { tab: id }), ...filtersFromParams(params, ['member']) }, { replace: true })}
         tabs={[{ id: 'contributions', label: 'Contributions', count: data.expenses.filter((e) => e.paid_by_member_id).length }, { id: 'repayments', label: 'Repayments', count: data.reimbursements.length }, { id: 'advances', label: 'Member Advances', count: data.advances.length }]} />
-      <ContributionsPanel key={tab} view={tab} modals={modals} />
+      <ContributionsPanel key={params.toString()} view={tab} modals={modals} initial={filtersFromParams(params, ['member', 'project'])} />
       {modals.element}
     </div>
   )

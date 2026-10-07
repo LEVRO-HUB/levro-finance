@@ -5,6 +5,7 @@ import { Button } from '../components/ui/Button'
 import { StatCard } from '../components/ui/StatCard'
 import { PageHeader } from '../components/ui/misc'
 import { InvoicesPanel } from '../components/modules/InvoicesPanel'
+import { filtersFromParams } from '../hooks/useFilters'
 import { useRecordModals } from '../components/modules/RecordModals'
 import { useData } from '../store/DataProvider'
 import { invoiceState, sum } from '../calculations/finance'
@@ -32,7 +33,7 @@ export function Invoices() {
         <StatCard label="Outstanding" value={formatCurrency(t.outstanding)} accent="attention" />
         <StatCard label="Overdue" value={formatCurrency(t.overdue)} accent={t.overdue > 0 ? 'negative' : 'neutral'} sub={`${t.overdueCount} invoice(s)`} />
       </div>
-      <InvoicesPanel key={status} modals={modals} initialStatus={status} />
+      <InvoicesPanel key={params.toString()} modals={modals} initialStatus={status} initial={filtersFromParams(params, ['project', 'q'])} />
       {modals.element}
     </div>
   )

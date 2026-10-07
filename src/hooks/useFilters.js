@@ -3,8 +3,9 @@ import { resolveRange } from '../lib/dates'
 
 // Filter state for list pages. `defaults` is an object of filter values;
 // 'All' / '' mean "not filtering". A `range` key holds { preset, from, to }.
-export function useFilters(defaults) {
-  const [filters, setFilters] = useState(defaults)
+// `initial` pre-selects filters (e.g. from a link) without changing what Reset returns to.
+export function useFilters(defaults, initial) {
+  const [filters, setFilters] = useState(() => ({ ...defaults, ...initial }))
   const set = (key, value) => setFilters((prev) => ({ ...prev, [key]: value }))
   const reset = () => setFilters(defaults)
   const activeCount = Object.entries(filters).filter(([k, v]) => {
@@ -24,4 +25,11 @@ export function matches(query, ...fields) {
   const q = String(query ?? '').trim().toLowerCase()
   if (!q) return true
   return fields.some((f) => String(f ?? '').toLowerCase().includes(q))
+}
+
+// Reads known filter keys from the page address, e.g. /transactions?member=<id>&type=Purchase
+export function filtersFromParams(params, keys) {
+  const out = {}
+  for (const k of keys) { const v = params.get(k); if (v) out[k] = v }
+  return out
 }

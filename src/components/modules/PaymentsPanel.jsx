@@ -6,6 +6,7 @@ import { KebabMenu } from '../ui/KebabMenu'
 import { SearchInput } from '../ui/misc'
 import { DateRangeFilter, FilterBar, FilterSelect } from '../ui/Filters'
 import { DEFAULT_RANGE, is, matches, useFilters } from '../../hooks/useFilters'
+import { InvoiceLink, MemberLink, ProjectLink } from '../ui/links'
 import { useData } from '../../store/DataProvider'
 import { sum } from '../../calculations/finance'
 import { INCOME_TYPES } from '../../services/schema'
@@ -15,9 +16,9 @@ import { formatCurrency, formatDate } from '../../lib/format'
 const typeLabel = (id) => INCOME_TYPES.find((t) => t.id === id)?.label ?? id
 
 // Actual payment records (money in). Recording a payment never edits an invoice amount.
-export function PaymentsPanel({ projectId, modals }) {
+export function PaymentsPanel({ projectId, modals, initial }) {
   const { data, sortedProjects, projectName, methodNames } = useData()
-  const { filters, set, reset, activeCount, range } = useFilters({ q: '', range: DEFAULT_RANGE, type: 'All', project: 'All', method: 'All', linked: 'All' })
+  const { filters, set, reset, activeCount, range } = useFilters({ q: '', range: DEFAULT_RANGE, type: 'All', project: 'All', method: 'All', linked: 'All' }, initial)
   const invoiceNo = useMemo(() => new Map(data.invoices.map((i) => [i.id, i.invoice_number])), [data.invoices])
   const scoped = useMemo(() => data.income.filter((i) => !projectId || i.project_id === projectId)
     .sort((a, b) => (a.date === b.date ? String(b.created_at).localeCompare(String(a.created_at)) : a.date < b.date ? 1 : -1)), [data.income, projectId])
@@ -47,8 +48,8 @@ export function PaymentsPanel({ projectId, modals }) {
             <tr key={p.id} className="hover:bg-slate-50/60">
               <Td className="font-mono text-xs text-slate-500">{p.code}</Td><Td>{formatDate(p.date)}</Td>
               <Td className="max-w-[240px] truncate font-medium text-slate-900">{p.description || typeLabel(p.type)}</Td><Td>{typeLabel(p.type)}</Td>
-              {!projectId && <Td>{projectName(p.project_id) ?? '—'}</Td>}
-              <Td>{invoiceNo.get(p.invoice_id) ?? '—'}</Td><Td>{p.payment_method || '—'}</Td><Td>{p.reference || '—'}</Td>
+              {!projectId && <Td><ProjectLink id={p.project_id} tab="payments" /></Td>}
+              <Td><InvoiceLink id={p.invoice_id} /></Td><Td>{p.payment_method || '—'}</Td><Td>{p.reference || '—'}</Td>
               <Td right className="font-medium text-emerald-600">+{formatCurrency(p.amount)}</Td>
               <Td right><KebabMenu items={[{ label: 'Edit', onClick: () => modals.open({ kind: 'income', action: 'edit', record: p }) }, modals.canDelete && { label: 'Delete', danger: true, onClick: () => modals.open({ kind: 'income', action: 'delete', record: p }) }]} /></Td>
             </tr>

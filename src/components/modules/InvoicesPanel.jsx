@@ -10,6 +10,7 @@ import { SearchInput } from '../ui/misc'
 import { DateRangeFilter, FilterBar, FilterSelect } from '../ui/Filters'
 import { useFileActions } from '../forms/DocumentModals'
 import { DEFAULT_RANGE, is, matches, useFilters } from '../../hooks/useFilters'
+import { InvoiceLink, MemberLink, ProjectLink } from '../ui/links'
 import { useData } from '../../store/DataProvider'
 import { invoiceState, sum } from '../../calculations/finance'
 import { INVOICE_STATUSES } from '../../services/schema'
@@ -46,10 +47,10 @@ function InvoiceDetail({ invoiceId, onClose, modals }) {
   )
 }
 
-export function InvoicesPanel({ projectId, modals, initialStatus = 'All' }) {
+export function InvoicesPanel({ projectId, modals, initialStatus = 'All', initial }) {
   const { data, today, sortedProjects, projectName } = useData()
   const files = useFileActions()
-  const { filters, set, reset, activeCount, range } = useFilters({ q: '', range: DEFAULT_RANGE, project: 'All', status: initialStatus, payment: 'All' })
+  const { filters, set, reset, activeCount, range } = useFilters({ q: '', range: DEFAULT_RANGE, project: 'All', status: initialStatus, payment: 'All' }, initial)
   const [detailId, setDetailId] = useState(null)
 
   const scoped = useMemo(() => data.invoices.filter((i) => !projectId || i.project_id === projectId)
@@ -83,7 +84,7 @@ export function InvoicesPanel({ projectId, modals, initialStatus = 'All' }) {
           {page.visible.map((i) => (
             <tr key={i.id} className="hover:bg-slate-50/60">
               <Td className="font-medium text-slate-900"><button type="button" className="min-h-0 hover:text-blue-600" onClick={() => setDetailId(i.id)}>{i.invoice_number}</button>{attachment(i)}</Td>
-              {!projectId && <><Td>{projectName(i.project_id)}</Td><Td>{i.client_name || '—'}</Td></>}
+              {!projectId && <><Td><ProjectLink id={i.project_id} tab="invoices" /></Td><Td>{i.client_name || '—'}</Td></>}
               <Td>{formatDate(i.invoice_date)}</Td><Td>{formatDate(i.due_date) || '—'}</Td>
               <Td right>{formatCurrency(i.amount)}</Td><Td right>{formatCurrency(i.tax_amount)}</Td><Td right className="font-medium text-slate-900">{formatCurrency(i.st.total)}</Td>
               <Td right className="text-emerald-600">{formatCurrency(i.st.paid)}</Td><Td right className={i.st.outstanding > 0 ? 'text-amber-600' : ''}>{formatCurrency(i.st.outstanding)}</Td>
