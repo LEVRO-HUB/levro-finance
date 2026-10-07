@@ -11,7 +11,8 @@ import { Amount, Card, ChangeBadge, PageHeader } from '../components/ui/misc'
 import { DonutWithLegend, IncomeExpenseBars, ProgressBar } from '../components/ui/charts'
 import { useRecordModals } from '../components/modules/RecordModals'
 import { useData } from '../store/DataProvider'
-import { companyPosition, companyReserve, companySummary, groupTotals, monthlySummary, pctChange, projectFinancials, recurringOverview } from '../calculations/finance'
+import { usePendingTasks } from '../hooks/usePendingTasks'
+import { companyPosition, companyReserve, companySummary, groupTotals, monthlySummary, pctChange, projectFinancials } from '../calculations/finance'
 import { previousRange, relativeDate, resolveRange } from '../lib/dates'
 import { formatCurrency } from '../lib/format'
 
@@ -40,15 +41,14 @@ export function Dashboard() {
       reserve: companyReserve(data),
       trend: monthlySummary(data, { months: 6, today }),
       categories: groupTotals(cur.expenses, (e) => e.category),
-      projects: data.projects.filter((p) => p.status === 'Active' || p.status === 'On Hold').map((p) => ({ ...p, f: projectFinancials(p, data, today) })),
+      projects: data.projects.filter((p) => p.kind !== 'product' && (p.status === 'Active' || p.status === 'On Hold')).map((p) => ({ ...p, f: projectFinancials(p, data, today) })),
     }
   }, [data, period, today])
 
   const recent = ledger.slice(0, 6)
   const recentPayments = ledger.filter((r) => r.kind === 'income').slice(0, 5)
   const { position: pos, reserve } = v
-  const rec = recurringOverview(data, today)
-  const pendingProjects = v.projects.filter((p) => p.f.outstanding > 0)
+  const tasks = usePendingTasks()
   const name = data.settings.user_name
 
   return (
@@ -85,6 +85,20 @@ export function Dashboard() {
         <StatCard compact label="Members Owe Levrotec" value={formatCurrency(pos.membersOweCompany)} icon={UserMinus} sub="outstanding advances" to="/contributions?tab=advances" />
         <StatCard compact label="Company Reserve" value={formatCurrency(reserve.current)} icon={Landmark} accent={reserve.current >= 0 ? 'neutral' : 'negative'} sub="cash position now" to="/reports?tab=reserve" />
       </div>
+
+      <section aria-label="To do" className="min-w-0 rounded-2xl border border-amber-200 bg-amber-50 p-4 sm:p-5">
+        <h2 className="mb-3 flex items-center gap-2 text-sm font-bold text-amber-800"><AlertCircle size={16} /> To do{tasks.length > 0 && <span className="rounded-full bg-amber-200 px-2 py-0.5 text-xs font-bold text-amber-900">{tasks.length}</span>}</h2>
+        {tasks.length === 0 ? <p className="text-sm text-amber-700">Nothing pending right now.</p> : (
+          <ul className="grid gap-2 text-sm text-amber-900 sm:grid-cols-2">
+            {tasks.map((t) => (
+              <li key={t.key}><Link to={t.to} className="flex items-center justify-between gap-3 rounded-xl border border-amber-200 bg-white/60 px-3 py-2.5 hover:bg-white">
+                <span className="flex min-w-0 items-center gap-2"><span aria-hidden="true" className={`h-2 w-2 flex-shrink-0 rounded-full ${t.tone === 'red' ? 'bg-red-500' : 'bg-amber-500'}`} /><span className="min-w-0">{t.text}</span></span>
+                {t.amount && <span className="flex-shrink-0 font-bold tabular-nums">{t.amount}</span>}
+              </Link></li>
+            ))}
+          </ul>
+        )}
+      </section>
 
       <div className="grid gap-4 xl:grid-cols-3">
         <Card title="Project Financial Overview" className="xl:col-span-2" action={<Link to="/projects" className="text-xs font-medium text-blue-600 hover:underline">All projects</Link>}>
@@ -136,13 +150,13 @@ export function Dashboard() {
             <div className="flex justify-between"><dt className="text-slate-500">Opening Reserve{reserve.asOf ? ` (from ${reserve.asOf})` : ''}</dt><dd className="tabular-nums">{formatCurrency(reserve.opening)}</dd></div>
             <div className="flex justify-between"><dt className="text-slate-500">Money In</dt><dd className="tabular-nums text-emerald-600">+{formatCurrency(reserve.moneyIn)}</dd></div>
             <div className="flex justify-between"><dt className="text-slate-500">Money Out</dt><dd className="tabular-nums text-red-500">−{formatCurrency(reserve.moneyOut)}</dd></div>
-            <div className="flex justify-between border-t border-slate-100 pt-2 font-semibold"><dt className="text-slate-700">Current Reserve</dt><dd className={`tabular-nums ${reserve.current < 0 ? 'text-red-600' : 'text-slate-900'}`}>{formatCurrency(reserve.current)}</dd></div>
+            <div className="flex items-baseline justify-between border-t border-slate-200 pt-3"><dt className="text-base font-bold text-slate-900">Current Reserve</dt><dd className={`text-2xl font-extrabold tracking-tight tabular-nums ${reserve.current < 0 ? 'text-red-600' : 'text-slate-900'}`}>{formatCurrency(reserve.current)}</dd></div>
           </dl>
           <p className="mt-3 text-xs text-slate-400">Money out counts company-paid expenses, reimbursements paid and advances given. Personal spending affects it only when reimbursed.</p>
         </Card>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid gap-4">
         <Card title="Recent Payments" action={<Link to="/payments" className="text-xs font-medium text-blue-600 hover:underline">View all</Link>}>
           {recentPayments.length === 0 ? <EmptyState icon={Wallet} title="No payments received yet" /> : (
             <ul className="divide-y divide-slate-100">
@@ -155,21 +169,6 @@ export function Dashboard() {
             </ul>
           )}
         </Card>
-        <section className="min-w-0 rounded-xl border border-amber-200 bg-amber-50 p-4 sm:p-5">
-          <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold text-amber-800"><AlertCircle size={16} /> Pending</h2>
-          {pos.pendingReimbursements <= 0 && pendingProjects.length === 0 && pos.overdueInvoices.length === 0 && pos.membersOweCompany <= 0 && rec.charges.pendingCount === 0 && rec.bills.pendingCount === 0 ? (
-            <p className="text-sm text-amber-700">Nothing pending right now.</p>
-          ) : (
-            <ul className="space-y-2 text-sm text-amber-900">
-              {pos.pendingReimbursements > 0 && <li className="flex justify-between gap-3"><Link className="hover:underline" to="/contributions">{pos.balances.filter((b) => b.companyOwes > 0).length} member reimbursement(s) pending</Link><span className="font-semibold tabular-nums">{formatCurrency(pos.pendingReimbursements)}</span></li>}
-              {pendingProjects.length > 0 && <li className="flex justify-between gap-3"><Link className="hover:underline" to="/projects">{pendingProjects.length} project payment(s) pending</Link><span className="font-semibold tabular-nums">{formatCurrency(pos.pendingReceivables)}</span></li>}
-              {pos.overdueInvoices.length > 0 && <li className="flex justify-between gap-3"><Link className="hover:underline" to="/invoices?status=Overdue">{pos.overdueInvoices.length} invoice(s) overdue</Link><span className="font-semibold tabular-nums">{formatCurrency(pos.overdueInvoices.reduce((a, s) => a + s.outstanding, 0))}</span></li>}
-              {rec.charges.pendingCount > 0 && <li className="flex justify-between gap-3"><Link className="hover:underline" to="/monthly-charges">{rec.charges.pendingCount} monthly charge(s) to collect</Link><span className="font-semibold tabular-nums">{formatCurrency(rec.charges.pendingAmount)}</span></li>}
-              {rec.bills.pendingCount > 0 && <li className="flex justify-between gap-3"><Link className="hover:underline" to="/bills">{rec.bills.pendingCount} monthly bill(s) to pay</Link><span className="font-semibold tabular-nums">{formatCurrency(rec.bills.pendingAmount)}</span></li>}
-              {pos.membersOweCompany > 0 && <li className="flex justify-between gap-3"><Link className="hover:underline" to="/contributions?tab=advances">Member advances to be returned</Link><span className="font-semibold tabular-nums">{formatCurrency(pos.membersOweCompany)}</span></li>}
-            </ul>
-          )}
-        </section>
       </div>
       {modals.element}
     </div>

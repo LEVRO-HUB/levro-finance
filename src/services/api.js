@@ -7,6 +7,7 @@ import { isValidISODate, addDays } from '../lib/dates'
 import { formatCurrency, slugify, todayISO } from '../lib/format'
 import { ValidationError } from './errors'
 import { PROFILE_FIELDS, TAX_LINES, companyProfile, invoiceBreakdown } from '../lib/company'
+import { PRODUCT_STAGES } from '../lib/products'
 
 export { ValidationError }
 
@@ -164,6 +165,7 @@ export function createApi(adapter) {
         let slug = slugify(name)
         for (let i = 2; state.projects.some((p) => p.slug === slug); i++) slug = `${slugify(name)}-${i}`
         payload.slug = slug
+        Object.assign(payload, { kind: 'client', stage: null, progress: null, stage_note: '', stage_updated_at: null })
       }
       // optional: "this project has a monthly charge" (only when the form sends it)
       const wantsMonthly = 'monthly_enabled' in values
@@ -191,6 +193,39 @@ export function createApi(adapter) {
         else state.recurring = state.recurring.filter((r) => r.id !== charge.id)
         log(state, 'updated', 'project', row.id, `Monthly charge switched off for “${row.name}”`, row.id)
       }
+      return row
+    }),
+
+    // Levrotec's own products: a project of kind 'product' with a stage and progress.
+    // Every change to stage / progress / note counts as a progress update.
+    saveProduct: (values, id = null) => mutate((state) => {
+      const c = new Checker()
+      const existing = id ? find(state, 'projects', id) : null
+      if (id && existing?.kind !== 'product') throw new ValidationError('This product no longer exists. Refresh and try again.')
+      const name = str(values.name ?? existing?.name)
+      c.check(name, 'name', 'Product name is required.')
+      c.check(name.length <= 120, 'name', 'Product name is too long.')
+      c.check(!state.projects.some((p) => p.id !== id && p.name.toLowerCase() === name.toLowerCase()), 'name', 'A project or product with this name already exists.')
+      const stage = str(values.stage ?? existing?.stage) || 'Idea'
+      c.check(PRODUCT_STAGES.includes(stage), 'stage', 'Choose a stage.')
+      const raw = str(values.progress ?? existing?.progress ?? 0)
+      const progress = raw === '' ? 0 : Number(raw)
+      c.check(Number.isInteger(progress) && progress >= 0 && progress <= 100, 'progress', 'Progress must be a whole number from 0 to 100.')
+      c.done()
+      const stage_note = str(values.stage_note ?? existing?.stage_note)
+      const moved = !existing || existing.stage !== stage || Number(existing.progress ?? 0) !== progress || str(existing.stage_note) !== stage_note || values.touch === true
+      const payload = {
+        name, description: str(values.description ?? existing?.description), stage, progress, stage_note,
+        status: stage === 'Launched' ? 'Completed' : stage === 'On Hold' ? 'On Hold' : 'Active',
+        stage_updated_at: moved ? nowISO() : existing.stage_updated_at ?? null,
+      }
+      if (!id) {
+        let slug = slugify(name)
+        for (let i = 2; state.projects.some((p) => p.slug === slug); i++) slug = `${slugify(name)}-${i}`
+        Object.assign(payload, { slug, kind: 'product', project_number: '', client_name: 'Levrotec (own product)', start_date: todayISO(), end_date: null, contract_value: 0, payment_terms: '', notes: '' })
+      }
+      const row = upsert(state, 'projects', id, payload)
+      if (moved) log(state, id ? 'updated' : 'created', 'project', row.id, `${id ? 'Progress update' : 'Added product'} “${name}”: ${stage} · ${progress}%${stage_note ? ` — ${stage_note}` : ''}`, row.id)
       return row
     }),
 

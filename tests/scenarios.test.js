@@ -346,3 +346,33 @@ describe('Invoice finalisation: tax, discount, company details', () => {
     await expect(api.saveInvoiceProfile({ name: 'X', email: 'not-an-email' })).rejects.toThrow()
   })
 })
+
+describe('Own products', () => {
+  beforeEach(() => fresh())
+  it('tracks stage and progress, stays out of client receivables, and can carry costs', async () => {
+    const { productActivity, daysSince } = await import('../src/lib/products')
+    const client = await api.saveProject({ name: 'Booking System', client_name: 'Chippy', contract_value: '0', status: 'Active' })
+    const z = await api.saveProduct({ name: 'Zapptude', stage: 'In Development', progress: '40', stage_note: 'Question bank done' })
+    await refresh()
+    const product = data.projects.find((p) => p.id === z.id)
+    expect(product).toMatchObject({ kind: 'product', stage: 'In Development', progress: 40, contract_value: 0, status: 'Active' })
+    expect(data.projects.find((p) => p.id === client.id).kind).toBe('client')
+    expect(productActivity(product, today)).toMatchObject({ tone: 'green' })
+    expect(productActivity({ ...product, stage_updated_at: '2020-01-01T00:00:00Z' }, today).tone).toBe('red')
+    expect(daysSince('2026-10-01', '2026-10-08')).toBe(7)
+    await api.saveExpense({ title: 'Domain', amount: 900, date: today, category: 'Hosting', project_id: z.id, payment_method: 'UPI' })
+    await refresh()
+    expect(F.projectFinancials(data.projects.find((p) => p.id === z.id), data)).toMatchObject({ totalCosts: 900, outstanding: 0 })
+    expect(F.companyPosition(data, today).pendingReceivables).toBe(0)
+    const before = data.projects.find((p) => p.id === z.id).stage_updated_at
+    await api.saveProduct({ description: 'Aptitude practice app' }, z.id) // details only: not a progress update
+    await refresh()
+    expect(data.projects.find((p) => p.id === z.id).stage_updated_at).toBe(before)
+    await api.saveProduct({ stage: 'Launched', progress: 100 }, z.id)
+    await refresh()
+    expect(data.projects.find((p) => p.id === z.id)).toMatchObject({ stage: 'Launched', status: 'Completed', description: 'Aptitude practice app' })
+    await expect(api.saveProduct({ name: 'Zapptude' })).rejects.toThrow(/already exists/)
+    await expect(api.saveProduct({ name: 'X', progress: 140 })).rejects.toThrow()
+    await expect(api.saveProduct({ stage: 'Testing' }, client.id)).rejects.toThrow()
+  })
+})

@@ -22,7 +22,7 @@ function toColumn(def, col, row) {
   if (def.c === 'document_versions' && col === 'storage_path') return row.storage_key
   if (def.c === 'activity_logs' && col === 'entity_id') return UUID.test(String(row.entity_id ?? '')) ? row.entity_id : null
   const v = row[col]
-  return v === undefined || v === '' && /(_date|_id|_month)$|^date$|^category$/.test(col) ? null : v
+  return v === undefined || v === '' && /(_date|_id|_month|_at)$|^date$|^category$|^stage$/.test(col) ? null : v
 }
 const toRecord = (def, row) => Object.fromEntries(def.cols.map((c) => [c, toColumn(def, c, row)]))
 

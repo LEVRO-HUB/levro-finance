@@ -19,6 +19,7 @@ import { Contributions } from './pages/Contributions'
 import { PayOut } from './pages/PayOut'
 import { Bills } from './pages/Bills'
 import { MonthlyCharges } from './pages/MonthlyCharges'
+import { Products } from './pages/Products'
 import { Reports } from './pages/Reports'
 import { Documents } from './pages/Documents'
 import { Settings } from './pages/Settings'
@@ -53,6 +54,7 @@ export default function App() {
                 <Routes>
                   <Route path="/" element={<Dashboard />} />
                   <Route path="/projects" element={<Projects />} />
+                  <Route path="/products" element={<Products />} />
                   <Route path="/projects/:slug/:tab?" element={<ProjectDetail />} />
                   <Route path="/invoices" element={<Invoices />} />
                   <Route path="/expenses" element={<Expenses />} />

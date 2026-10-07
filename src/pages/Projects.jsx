@@ -31,7 +31,7 @@ export function Projects() {
   const [form, setForm] = useState(null) // { project? }
   const [deleting, setDeleting] = useState(null)
 
-  const all = useMemo(() => data.projects.map((p) => ({ ...p, f: projectFinancials(p, data, today) })), [data, today])
+  const all = useMemo(() => data.projects.filter((p) => p.kind !== 'product').map((p) => ({ ...p, f: projectFinancials(p, data, today) })), [data, today])
   const rows = useMemo(() => all.filter((p) => is(filters.status, p.status) && matches(filters.q, p.name, p.client_name, p.project_number, p.description)).sort(SORTS[filters.sort]), [all, filters])
   const Metric = ({ label, value, cls = 'text-slate-900' }) => <div><p className="text-xs text-slate-400">{label}</p><p className={`font-medium tabular-nums ${cls}`}>{formatCurrency(value)}</p></div>
 

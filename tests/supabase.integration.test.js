@@ -388,4 +388,18 @@ describe.skipIf(!URL)('Supabase data layer (real Postgres, real RLS)', () => {
     await expect(m.api.saveInvoiceProfile({ name: 'Hacked' })).rejects.toThrow()
     expect((await sql(`select invoice_profile->>'name' as n from public.app_settings`))[0].n).toBe('LEVROTEC TECHNOLOGIES')
   })
+
+  it('own products persist with stage and progress; client projects default to kind client', async () => {
+    const a = open(admin), m = open(member)
+    const c = await a.api.saveProject({ name: 'Booking System', contract_value: 0, status: 'Active' })
+    const z = await m.api.saveProduct({ name: 'Zapptude', stage: 'In Development', progress: 40, stage_note: 'Question bank done' })
+    await a.api.refresh()
+    const d = await a.api.load()
+    expect(d.projects.find((p) => p.id === c.id)).toMatchObject({ kind: 'client', stage: null, progress: null })
+    expect(d.projects.find((p) => p.id === z.id)).toMatchObject({ kind: 'product', stage: 'In Development', progress: 40, stage_note: 'Question bank done' })
+    expect(d.projects.find((p) => p.id === z.id).stage_updated_at).toBeTruthy()
+    await a.api.saveProduct({ stage: 'Testing', progress: 80 }, z.id)
+    expect((await sql(`select stage, progress, kind from public.projects where id = $1`, [z.id]))[0]).toMatchObject({ stage: 'Testing', progress: 80, kind: 'product' })
+    await expect(sql(`update public.projects set progress = 140 where id = $1`, [z.id])).rejects.toThrow()
+  })
 })

@@ -1,24 +1,17 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { ArrowLeftRight, Bell, Briefcase, LayoutDashboard, LogOut, Menu, Moon, MoreHorizontal, Receipt, Search, Settings as SettingsIcon, Sun } from 'lucide-react'
 import { SidebarContent } from './Sidebar'
 import { Avatar, ErrorState, Loading } from './ui/misc'
 import { Button } from './ui/Button'
 import { useData } from '../store/DataProvider'
-import { companyPosition } from '../calculations/finance'
-import { formatCurrency } from '../lib/format'
 import { getTheme, setTheme } from '../lib/theme'
+import { usePendingTasks } from '../hooks/usePendingTasks'
 
 function Notifications() {
-  const { data, today } = useData()
   const [open, setOpen] = useState(false)
   const ref = useRef(null)
-  const pos = useMemo(() => companyPosition(data, today), [data, today])
-  const items = [
-    pos.overdueInvoices.length > 0 && { to: '/invoices?status=Overdue', text: `${pos.overdueInvoices.length} overdue invoice${pos.overdueInvoices.length > 1 ? 's' : ''}`, sub: formatCurrency(pos.overdueInvoices.reduce((a, s) => a + s.outstanding, 0)) },
-    pos.pendingReimbursements > 0 && { to: '/contributions', text: 'Reimbursements pending', sub: formatCurrency(pos.pendingReimbursements) },
-    pos.membersOweCompany > 0 && { to: '/contributions?tab=advances', text: 'Member advances outstanding', sub: formatCurrency(pos.membersOweCompany) },
-  ].filter(Boolean)
+  const items = usePendingTasks()
 
   useEffect(() => {
     if (!open) return
@@ -34,11 +27,11 @@ function Notifications() {
         {items.length > 0 && <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-red-500 ring-2 ring-white" />}
       </button>
       {open && (
-        <div className="absolute right-0 z-40 mt-2 w-72 surface rounded-2xl border border-slate-200/80 bg-white p-2 shadow-lg">
-          <p className="px-2 py-1 text-xs font-semibold text-slate-500">Needs attention</p>
+        <div className="absolute right-0 z-40 mt-2 w-80 max-w-[calc(100vw-1.5rem)] surface rounded-2xl border border-slate-200/80 bg-white p-2 shadow-lg">
+          <p className="px-2 py-1 text-xs font-semibold text-slate-500">To do{items.length ? ` (${items.length})` : ''}</p>
           {items.length === 0 ? <p className="px-2 py-3 text-sm text-slate-400">Nothing pending right now.</p> : items.map((it) => (
-            <Link key={it.to} to={it.to} onClick={() => setOpen(false)} className="flex items-center justify-between gap-3 rounded-lg px-2 py-2 text-sm hover:bg-slate-50">
-              <span className="text-slate-700">{it.text}</span><span className="font-medium tabular-nums text-amber-600">{it.sub}</span>
+            <Link key={it.key} to={it.to} onClick={() => setOpen(false)} className="flex items-center justify-between gap-3 rounded-lg px-2 py-2 text-sm hover:bg-slate-50">
+              <span className="flex min-w-0 items-center gap-2 text-slate-700"><span aria-hidden="true" className={`h-2 w-2 flex-shrink-0 rounded-full ${it.tone === 'red' ? 'bg-red-500' : 'bg-amber-500'}`} />{it.text}</span><span className="flex-shrink-0 font-medium tabular-nums text-amber-600">{it.amount}</span>
             </Link>
           ))}
         </div>
