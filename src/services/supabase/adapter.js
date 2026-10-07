@@ -22,7 +22,7 @@ function toColumn(def, col, row) {
   if (def.c === 'document_versions' && col === 'storage_path') return row.storage_key
   if (def.c === 'activity_logs' && col === 'entity_id') return UUID.test(String(row.entity_id ?? '')) ? row.entity_id : null
   const v = row[col]
-  return v === undefined || v === '' && /(_date|_id)$|^date$/.test(col) ? null : v
+  return v === undefined || v === '' && /(_date|_id|_month)$|^date$|^category$/.test(col) ? null : v
 }
 const toRecord = (def, row) => Object.fromEntries(def.cols.map((c) => [c, toColumn(def, c, row)]))
 
@@ -144,7 +144,11 @@ export function createRemoteAdapter(gateway) {
         if (!def.appendOnly) for (const r of base[def.c]) if (!cur.has(r.id)) deletes.push([def, r])
       }
       // children before parents
-      for (const [def, r] of deletes.reverse()) await run(def.t, () => gateway.remove(def.t, r.id))
+      for (const [def, r] of deletes.reverse()) {
+        await run(def.t, () => gateway.remove(def.t, r.id))
+        // the database unlinks that bill's / charge's payments
+        if (def.t === 'recurring_items') { touched.add('income'); touched.add('expenses') }
+      }
 
       const s0 = base.settings, s1 = state.settings
       const patch = {}
@@ -154,7 +158,7 @@ export function createRemoteAdapter(gateway) {
       if (Object.keys(patch).length) await run('app_settings', () => gateway.update('app_settings', true, patch))
       if (!same(s0.user_name, s1.user_name)) await run('profile', () => gateway.updateOwnName(s1.user_name ?? ''))
 
-      if (cascades) for (const t of ['expenses', 'income', 'reimbursements', 'member_advances']) touched.add(t)
+      if (cascades) for (const t of ['expenses', 'income', 'reimbursements', 'member_advances', 'recurring_items']) touched.add(t)
       for (const t of touched) dirty.add(t)
     } catch (err) {
       // something was refused part-way: re-read everything so the screen shows the truth

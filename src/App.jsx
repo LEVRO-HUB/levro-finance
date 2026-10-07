@@ -17,6 +17,7 @@ import { Transactions } from './pages/Transactions'
 import { Payments } from './pages/Payments'
 import { Contributions } from './pages/Contributions'
 import { PayOut } from './pages/PayOut'
+import { Bills } from './pages/Bills'
 import { Reports } from './pages/Reports'
 import { Documents } from './pages/Documents'
 import { Settings } from './pages/Settings'
@@ -60,6 +61,7 @@ export default function App() {
                   <Route path="/payments" element={<Payments />} />
                   <Route path="/contributions" element={<Contributions />} />
                   <Route path="/payouts" element={<PayOut />} />
+                  <Route path="/bills" element={<Bills />} />
                   <Route path="/reports" element={<Reports />} />
                   <Route path="/documents" element={<Documents />} />
                   <Route path="/settings" element={<Settings />} />

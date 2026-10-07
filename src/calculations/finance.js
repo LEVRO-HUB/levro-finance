@@ -83,7 +83,10 @@ export function projectFinancials(project, data, today = todayISO()) {
   const invoices = data.invoices.filter((i) => i.project_id === project?.id)
   const expenses = data.expenses.filter((e) => e.project_id === project?.id)
 
-  const received = sum(income)
+  // Monthly charges (maintenance fees) are earned on top of the contract: they
+  // count as project income but never reduce what is owed on the contract.
+  const monthlyFees = sum(income.filter((i) => i.recurring_id))
+  const received = round2(sum(income) - monthlyFees)
   const invoiceStates = invoices.map((inv) => ({ invoice: inv, ...invoiceState(inv, data.income, today) }))
   const live = invoiceStates.filter((s) => s.status !== 'Cancelled')
   const invoiced = sum(live, (s) => s.total)
@@ -97,13 +100,14 @@ export function projectFinancials(project, data, today = todayISO()) {
   const pendingReimbursement = sum(expenses, (e) => reimbursementState(e, data.reimbursements).owed)
   // "Project Costs" = costs already settled in cash (company-paid + reimbursed).
   const projectCosts = round2(totalCosts - pendingReimbursement)
-  const operatingResult = round2(received - projectCosts - pendingReimbursement)
+  const totalReceived = round2(received + monthlyFees)
+  const operatingResult = round2(totalReceived - projectCosts - pendingReimbursement)
 
   return {
-    contractValue, received, outstanding, invoiced, invoiceOutstanding, tdsDeducted,
+    contractValue, received, monthlyFees, totalReceived, outstanding, invoiced, invoiceOutstanding, tdsDeducted,
     unbilled: round2(Math.max(contractValue - invoiced, 0)),
     projectCosts, pendingReimbursement, totalCosts, operatingResult,
-    margin: received > 0 ? (operatingResult / received) * 100 : null,
+    margin: totalReceived > 0 ? (operatingResult / totalReceived) * 100 : null,
     receivedPct: contractValue > 0 ? Math.min((received / contractValue) * 100, 100) : 0,
     income, invoices, invoiceStates, expenses,
   }
@@ -256,7 +260,7 @@ export function monthlySummary(data, { months = 6, today = todayISO(), range = n
   return keys.map((key) => {
     const income = sum(data.income.filter((i) => monthKey(i.date) === key))
     const expenses = sum(data.expenses.filter((e) => monthKey(e.date) === key))
-    return { key, label: monthLabel(key), short: MONTHS[Number(key.slice(5, 7)) - 1], income, expenses, net: round2(income - expenses) }
+    return { key, label: monthName(key), short: MONTHS[Number(key.slice(5, 7)) - 1], income, expenses, net: round2(income - expenses) }
   })
 }
 
@@ -277,4 +281,53 @@ export function groupTotals(rows, keyOf, amountOf = (r) => num(r.amount)) {
 export function pctChange(current, previous) {
   if (!previous) return null
   return ((current - previous) / Math.abs(previous)) * 100
+}
+
+// ───────────────────────── Monthly bills & charges ─────────────────────────
+// A bill / charge is only a definition (amount, due day, first month). Each
+// month's status is derived from the expense or income recorded for it.
+const ym = (v) => String(v ?? '').slice(0, 7)
+const nextMonth = (m) => { const [y, mo] = m.split('-').map(Number); return mo === 12 ? `${y + 1}-01` : `${y}-${String(mo + 1).padStart(2, '0')}` }
+export function monthName(m) {
+  const [y, mo] = ym(m).split('-').map(Number)
+  return `${['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][mo - 1] ?? ''} ${y}`
+}
+
+export function recurringSchedule(item, data, today = todayISO()) {
+  const records = (item.kind === 'maintenance' ? data.income : data.expenses).filter((r) => r.recurring_id === item.id)
+  const byMonth = new Map(records.map((r) => [ym(r.recurring_month), r]))
+  const current = ym(today)
+  const last = item.end_month && ym(item.end_month) < current ? ym(item.end_month) : current
+  const months = []
+  for (let m = ym(item.start_month), n = 0; m && m <= last && n < 600; m = nextMonth(m), n++) {
+    const due_date = `${m}-${String(item.due_day ?? 1).padStart(2, '0')}`
+    const record = byMonth.get(m) ?? null
+    months.push({ month: m, label: monthName(m), due_date, record, status: record ? 'Done' : today > due_date ? 'Overdue' : 'Due' })
+  }
+  const pending = months.filter((m) => !m.record)
+  return {
+    months, pending,
+    pendingAmount: round2(pending.length * num(item.amount)),
+    overdue: pending.filter((m) => m.status === 'Overdue').length,
+    thisMonth: months.find((m) => m.month === current) ?? null,
+    ended: !!item.end_month && ym(item.end_month) < current,
+    collected: sum(records),
+  }
+}
+
+export function recurringOverview(data, today = todayISO()) {
+  const all = (data.recurring ?? []).map((item) => ({ item, ...recurringSchedule(item, data, today) }))
+  const part = (kind) => {
+    const rows = all.filter((r) => r.item.kind === kind)
+    const live = rows.filter((r) => !r.ended)
+    return {
+      rows,
+      monthly: sum(live, (r) => r.item.amount),
+      pendingCount: sum(rows, (r) => r.pending.length),
+      pendingAmount: sum(rows, (r) => r.pendingAmount),
+      overdueCount: sum(rows, (r) => r.overdue),
+      doneThisMonth: sum(rows.filter((r) => r.thisMonth?.record), (r) => r.thisMonth.record.amount),
+    }
+  }
+  return { bills: part('bill'), charges: part('maintenance') }
 }

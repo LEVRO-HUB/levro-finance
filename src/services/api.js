@@ -2,7 +2,7 @@
 // operations, which validate (fields + relationships), write, and append an
 // activity-log entry. Phase 2 re-implements the same surface on Supabase.
 import { blankState, DOC_CATEGORIES, EXPENSE_TYPES, INCOME_TYPES, INVOICE_STORED_STATUSES, MAX_FILE_BYTES, PROJECT_STATUSES } from './schema'
-import { invoiceState, invoiceTotal, memberBalance, reimbursementState, round2, sum } from '../calculations/finance'
+import { invoiceState, invoiceTotal, memberBalance, monthName, reimbursementState, round2, sum } from '../calculations/finance'
 import { isValidISODate, addDays } from '../lib/dates'
 import { formatCurrency, slugify, todayISO } from '../lib/format'
 import { ValidationError } from './errors'
@@ -47,6 +47,19 @@ function nextCode(state, collection) {
   const n = (state.meta.counters[collection] ?? 0) + 1
   state.meta.counters[collection] = n
   return `${PREFIX[collection]}-${String(n).padStart(4, '0')}`
+}
+
+const MONTH = /^\d{4}-(0[1-9]|1[0-2])$/
+function parseMonth(c, value, field, { required = true, label = 'Month' } = {}) {
+  const v = str(value).slice(0, 7)
+  if (!v) { if (required) c.add(field, `${label} is required.`); return null }
+  if (!MONTH.test(v) || v < '2000-01' || v > '2100-12') { c.add(field, `${label} is not a valid month.`); return null }
+  return `${v}-01`
+}
+function parseDueDay(c, value, field = 'due_day') {
+  const n = Number(str(value) || 5)
+  c.check(Number.isInteger(n) && n >= 1 && n <= 28, field, 'Due day must be between 1 and 28.')
+  return n
 }
 
 export function createApi(adapter) {
@@ -151,8 +164,32 @@ export function createApi(adapter) {
         for (let i = 2; state.projects.some((p) => p.slug === slug); i++) slug = `${slugify(name)}-${i}`
         payload.slug = slug
       }
+      // optional: "this project has a monthly charge" (only when the form sends it)
+      const wantsMonthly = 'monthly_enabled' in values
+      const charge = id ? state.recurring.find((r) => r.kind === 'maintenance' && r.project_id === id) : null
+      let monthly = null
+      if (wantsMonthly && values.monthly_enabled) {
+        const c2 = new Checker()
+        monthly = {
+          amount: parseAmount(c2, values.monthly_amount, 'monthly_amount', { label: 'Monthly amount' }),
+          due_day: parseDueDay(c2, values.monthly_due_day, 'monthly_due_day'),
+          start_month: parseMonth(c2, values.monthly_start, 'monthly_start', { label: 'First month' }),
+        }
+        c2.done()
+      }
       const row = upsert(state, 'projects', id, payload)
       log(state, id ? 'updated' : 'created', 'project', row.id, `${id ? 'Updated' : 'Created'} project “${row.name}” (contract ${formatCurrency(contract_value)})`, row.id)
+      if (monthly) {
+        if (charge) Object.assign(charge, monthly, { end_month: null, updated_at: nowISO() })
+        else state.recurring.push({ id: uid(), kind: 'maintenance', name: 'Monthly maintenance', project_id: row.id, ...monthly, end_month: null, category: null, recipient: '', notes: '', created_at: nowISO(), updated_at: nowISO() })
+        log(state, 'updated', 'project', row.id, `Monthly charge set to ${formatCurrency(monthly.amount)} for “${row.name}”`, row.id)
+      } else if (wantsMonthly && charge) {
+        // switched off: keep what was collected, stop asking for more
+        const paid = state.income.filter((i) => i.recurring_id === charge.id).map((i) => String(i.recurring_month).slice(0, 7)).sort()
+        if (paid.length) Object.assign(charge, { end_month: `${paid[paid.length - 1]}-01`, updated_at: nowISO() })
+        else state.recurring = state.recurring.filter((r) => r.id !== charge.id)
+        log(state, 'updated', 'project', row.id, `Monthly charge switched off for “${row.name}”`, row.id)
+      }
       return row
     }),
 
@@ -162,6 +199,7 @@ export function createApi(adapter) {
       const linked = ['income', 'expenses', 'invoices'].filter((k) => state[k].some((r) => r.project_id === id))
       if (linked.length) throw new ValidationError(`“${p.name}” has financial records (${linked.join(', ')}) and can't be deleted. Set its status to Cancelled instead, or remove those records first.`)
       for (const d of state.documents.filter((x) => x.project_id === id)) await removeDocument(state, d.id)
+      state.recurring = state.recurring.filter((r) => r.project_id !== id)
       state.projects = state.projects.filter((x) => x.id !== id)
       state.activity_logs = state.activity_logs.filter((l) => l.project_id !== id)
       log(state, 'deleted', 'project', id, `Deleted project “${p.name}”`)
@@ -481,7 +519,7 @@ export function createApi(adapter) {
         const old = find(state, collection, id)?.name
         if (old && old !== v) {
           // keep history consistent: a rename renames it on existing records too
-          if (collection === 'categories') for (const e of state.expenses) if (e.category === old) e.category = v
+          if (collection === 'categories') for (const e of [...state.expenses, ...state.recurring]) if (e.category === old) e.category = v
           if (collection === 'payment_methods') for (const k of ['income', 'expenses', 'reimbursements', 'advances']) for (const r of state[k]) if (r.payment_method === old) r.payment_method = v
         }
       }
@@ -492,11 +530,79 @@ export function createApi(adapter) {
       const row = find(state, collection, id)
       if (!row) return
       const inUse = collection === 'categories'
-        ? state.expenses.some((e) => e.category === row.name)
+        ? state.expenses.some((e) => e.category === row.name) || state.recurring.some((e) => e.category === row.name)
         : ['income', 'expenses', 'reimbursements', 'advances'].some((k) => state[k].some((r) => r.payment_method === row.name))
       if (inUse) throw new ValidationError(`“${row.name}” is used by existing records and can't be deleted. Rename it instead.`)
       if (state[collection].length <= 1) throw new ValidationError('At least one entry is required.')
       state[collection] = state[collection].filter((r) => r.id !== id)
+    }),
+
+    // ───────── Monthly bills & project monthly charges ─────────
+    saveRecurring: (values, id = null) => mutate((state) => {
+      const c = new Checker()
+      const existing = id ? find(state, 'recurring', id) : null
+      const kind = existing?.kind ?? (values.kind === 'maintenance' ? 'maintenance' : 'bill')
+      const name = str(values.name) || (kind === 'maintenance' ? 'Monthly maintenance' : '')
+      c.check(name, 'name', 'Name is required.')
+      c.check(name.length <= 80, 'name', 'Keep the name under 80 characters.')
+      const amount = parseAmount(c, values.amount, 'amount', { label: 'Monthly amount' })
+      const due_day = parseDueDay(c, values.due_day)
+      const start_month = parseMonth(c, values.start_month, 'start_month', { label: 'First month' })
+      const end_month = parseMonth(c, values.end_month, 'end_month', { required: false, label: 'Last month' })
+      if (start_month && end_month) c.check(end_month >= start_month, 'end_month', 'Last month cannot be before the first month.')
+      const project_id = values.project_id || null
+      if (kind === 'maintenance') c.check(project_id, 'project_id', 'Choose the project.')
+      if (project_id) c.check(find(state, 'projects', project_id), 'project_id', 'That project no longer exists.')
+      let category = null
+      if (kind === 'bill') {
+        category = str(values.category)
+        c.check(category && state.categories.some((k) => k.name === category), 'category', 'Choose a category from the list.')
+      }
+      c.done()
+      const row = upsert(state, 'recurring', id, { kind, name, amount, due_day, start_month, end_month, project_id, category, recipient: str(values.recipient), notes: str(values.notes) })
+      log(state, id ? 'updated' : 'created', 'recurring', row.id, `${id ? 'Updated' : 'Added'} ${kind === 'bill' ? 'monthly bill' : 'monthly charge'} “${name}” ${formatCurrency(amount)}/month`, project_id)
+      return row
+    }),
+
+    // Removes the schedule only. Payments already recorded stay in the books.
+    deleteRecurring: (id) => mutate((state) => {
+      const row = find(state, 'recurring', id)
+      if (!row) return
+      state.recurring = state.recurring.filter((r) => r.id !== id)
+      log(state, 'deleted', 'recurring', id, `Removed ${row.kind === 'bill' ? 'monthly bill' : 'monthly charge'} “${row.name}”`, row.project_id)
+    }),
+
+    // Ticks one month: records the real expense (bill) or income (charge) for it.
+    payRecurring: (id, month, values = {}) => mutate((state) => {
+      const item = find(state, 'recurring', id)
+      if (!item) throw new ValidationError('This monthly item no longer exists. Refresh and try again.')
+      const c = new Checker()
+      const m = str(month).slice(0, 7)
+      const inside = MONTH.test(m) && m >= String(item.start_month).slice(0, 7) && (!item.end_month || m <= String(item.end_month).slice(0, 7))
+      if (!inside) throw new ValidationError('That month is outside this schedule.')
+      const collection = item.kind === 'maintenance' ? 'income' : 'expenses'
+      if (state[collection].some((r) => r.recurring_id === id && String(r.recurring_month).slice(0, 7) === m)) throw new ValidationError(`${monthName(m)} is already marked.`)
+      const amount = parseAmount(c, values.amount ?? item.amount)
+      const date = parseDate(c, values.date, 'date', { allowFuture: false })
+      const payment_method = checkMethod(c, state, values.payment_method)
+      const paid_by_member_id = item.kind === 'bill' ? values.paid_by_member_id || null : null
+      if (paid_by_member_id) c.check(find(state, 'members', paid_by_member_id), 'paid_by_member_id', 'That member no longer exists.')
+      if (item.project_id) c.check(find(state, 'projects', item.project_id), 'date', 'The project for this item no longer exists.')
+      c.done()
+      const link = { recurring_id: id, recurring_month: `${m}-01` }
+      const label = `${item.name} — ${monthName(m)}`
+      if (item.kind === 'maintenance') {
+        const row = upsert(state, 'income', null, { type: 'project_payment', amount, date, project_id: item.project_id, invoice_id: null, payment_method, reference: str(values.reference), description: label, notes: '', ...link })
+        log(state, 'created', 'income', row.id, `Collected ${label} ${formatCurrency(amount)}`, item.project_id)
+        return row
+      }
+      const row = upsert(state, 'expenses', null, {
+        title: label, amount, date, category: item.category, expense_type: item.project_id ? 'project_expense' : 'company_expense', project_id: item.project_id || null,
+        paid_by_member_id, purchased_by_member_id: null, payment_method, recipient: item.recipient ?? '', reference: str(values.reference), description: '', is_asset: false, receipt_document_id: null, ...link,
+      })
+      const who = paid_by_member_id ? ` (paid personally by ${find(state, 'members', paid_by_member_id)?.name})` : ''
+      log(state, 'created', 'expense', row.id, `Paid ${label} ${formatCurrency(amount)}${who}`, item.project_id)
+      return row
     }),
 
     // ───────── Workspace ─────────

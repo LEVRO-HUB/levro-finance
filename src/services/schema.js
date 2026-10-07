@@ -1,7 +1,7 @@
 export const SCHEMA_VERSION = 1
 
 export const COLLECTIONS = [
-  'members', 'projects', 'income', 'expenses', 'reimbursements', 'advances', 'invoices',
+  'members', 'projects', 'recurring', 'income', 'expenses', 'reimbursements', 'advances', 'invoices',
   'documents', 'document_versions', 'categories', 'payment_methods', 'activity_logs',
 ]
 

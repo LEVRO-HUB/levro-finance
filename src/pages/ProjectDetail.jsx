@@ -14,6 +14,7 @@ import { ExpensesPanel } from '../components/modules/ExpensesPanel'
 import { InvoicesPanel } from '../components/modules/InvoicesPanel'
 import { PaymentsPanel } from '../components/modules/PaymentsPanel'
 import { DocumentsPanel } from '../components/modules/DocumentsPanel'
+import { RecurringPanel } from '../components/modules/RecurringPanel'
 import { ContributionsPanel } from '../components/modules/ContributionsPanel'
 import { useData } from '../store/DataProvider'
 import { groupTotals, monthlySummary, projectFinancials } from '../calculations/finance'
@@ -27,6 +28,7 @@ const TABS = [
 function SummaryList({ f, full = false }) {
   const rows = [
     ['Contract Value', f.contractValue], ['Received', f.received, 'text-emerald-600'], ['Outstanding', f.outstanding, 'text-amber-600'],
+    ...(f.monthlyFees ? [['Monthly Charges Collected', f.monthlyFees, 'text-emerald-600']] : []),
     ['Project Expenses', f.projectCosts], ['Pending Reimbursement', f.pendingReimbursement, f.pendingReimbursement > 0 ? 'text-amber-600' : ''],
     ...(full ? [['Total Costs Incurred', f.totalCosts], ['Invoiced', f.invoiced], ['Not Yet Invoiced', f.unbilled], ['Outstanding on Invoices', f.invoiceOutstanding], ...(f.tdsDeducted ? [['TDS Deducted by Client', f.tdsDeducted]] : [])] : []),
   ]
@@ -90,6 +92,12 @@ export function ProjectDetail() {
             </dl>
             <div className="mt-3 border-t border-slate-100 pt-3"><p className="text-xs text-slate-400">Description</p><p className="text-sm text-slate-700">{project.description || '—'}</p></div>
             <div className="mt-3"><p className="text-xs text-slate-400">Notes</p><p className="text-sm text-slate-700">{project.notes || '—'}</p></div>
+          </Card>
+          <Card title="Monthly Charges" className="lg:col-span-2">
+            <RecurringPanel kind="maintenance" projectId={project.id} emptyTitle="No monthly charge for this project" emptyDescription="If the client pays a monthly maintenance or support fee, add it here and tick off each month as it is collected." />
+          </Card>
+          <Card title="Monthly Bills for this Project" className="lg:col-span-2">
+            <RecurringPanel kind="bill" projectId={project.id} emptyTitle="No monthly bills linked to this project" emptyDescription="Hosting, domains or subscriptions paid every month for this project can be added from Monthly Bills." />
           </Card>
         </div>
       )}

@@ -215,3 +215,48 @@ describe('validation & integrity', () => {
     expect(row.code).toBe('INC-0007')
   })
 })
+
+describe('Monthly bills and project monthly charges', () => {
+  const month = today.slice(0, 7)
+  const prev = (() => { const [y, m] = month.split('-').map(Number); return m === 1 ? `${y - 1}-12` : `${y}-${String(m - 1).padStart(2, '0')}` })()
+  beforeEach(() => fresh())
+
+  it('a bill lists each month and ticking one records an expense', async () => {
+    const bill = await api.saveRecurring({ kind: 'bill', name: 'Office rent', amount: 15000, due_day: 5, start_month: prev, category: 'Rent' })
+    await refresh()
+    let s = F.recurringSchedule(data.recurring[0], data, today)
+    expect(s.months.map((m) => m.month)).toEqual([prev, month])
+    expect(s.pending.length).toBe(2)
+    expect(s.months[0].status).toBe('Overdue')
+    await api.payRecurring(bill.id, prev, { date: today, payment_method: 'UPI' })
+    await refresh()
+    s = F.recurringSchedule(data.recurring[0], data, today)
+    expect(s.pending.length).toBe(1)
+    expect(data.expenses[0]).toMatchObject({ amount: 15000, category: 'Rent', expense_type: 'company_expense', recurring_id: bill.id })
+    expect(F.companySummary(data).totalExpenses).toBe(15000)
+    await expect(api.payRecurring(bill.id, prev, { date: today, payment_method: 'UPI' })).rejects.toThrow(/already/)
+    await expect(api.payRecurring(bill.id, '2001-01', { date: today, payment_method: 'UPI' })).rejects.toThrow(/outside/)
+    await api.deleteExpense(data.expenses[0].id)
+    await refresh()
+    expect(F.recurringSchedule(data.recurring[0], data, today).pending.length).toBe(2)
+  })
+
+  it('a project monthly charge is income but does not reduce the contract balance', async () => {
+    const p = await api.saveProject({ name: 'ERP', contract_value: '100000', status: 'Active', monthly_enabled: true, monthly_amount: 5000, monthly_due_day: 10, monthly_start: month })
+    await refresh()
+    const charge = data.recurring[0]
+    expect(charge).toMatchObject({ kind: 'maintenance', project_id: p.id, amount: 5000 })
+    await api.saveIncome({ type: 'client_payment', amount: 40000, date: today, project_id: p.id, payment_method: 'UPI' })
+    await api.payRecurring(charge.id, month, { date: today, payment_method: 'UPI' })
+    await refresh()
+    const f = F.projectFinancials(data.projects[0], data)
+    expect(f).toMatchObject({ received: 40000, monthlyFees: 5000, outstanding: 60000, operatingResult: 45000 })
+    expect(F.companySummary(data).totalIncome).toBe(45000)
+    expect(F.recurringOverview(data, today).charges.pendingCount).toBe(0)
+    // switching it off keeps what was collected
+    await api.saveProject({ ...data.projects[0], monthly_enabled: false }, p.id)
+    await refresh()
+    expect(data.recurring[0].end_month).toBe(`${month}-01`)
+    expect(data.income.length).toBe(2)
+  })
+})

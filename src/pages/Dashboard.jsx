@@ -10,7 +10,7 @@ import { Amount, Card, ChangeBadge, PageHeader } from '../components/ui/misc'
 import { DonutWithLegend, IncomeExpenseBars, ProgressBar } from '../components/ui/charts'
 import { useRecordModals } from '../components/modules/RecordModals'
 import { useData } from '../store/DataProvider'
-import { companyPosition, companyReserve, companySummary, groupTotals, monthlySummary, pctChange, projectFinancials } from '../calculations/finance'
+import { companyPosition, companyReserve, companySummary, groupTotals, monthlySummary, pctChange, projectFinancials, recurringOverview } from '../calculations/finance'
 import { previousRange, relativeDate, resolveRange } from '../lib/dates'
 import { formatCurrency } from '../lib/format'
 
@@ -46,6 +46,7 @@ export function Dashboard() {
   const recent = ledger.slice(0, 6)
   const recentPayments = ledger.filter((r) => r.kind === 'income').slice(0, 5)
   const { position: pos, reserve } = v
+  const rec = recurringOverview(data, today)
   const pendingProjects = v.projects.filter((p) => p.f.outstanding > 0)
   const name = data.settings.user_name
 
@@ -153,13 +154,15 @@ export function Dashboard() {
         </Card>
         <section className="min-w-0 rounded-xl border border-amber-200 bg-amber-50 p-4 sm:p-5">
           <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold text-amber-800"><AlertCircle size={16} /> Pending</h2>
-          {pos.pendingReimbursements <= 0 && pendingProjects.length === 0 && pos.overdueInvoices.length === 0 && pos.membersOweCompany <= 0 ? (
+          {pos.pendingReimbursements <= 0 && pendingProjects.length === 0 && pos.overdueInvoices.length === 0 && pos.membersOweCompany <= 0 && rec.charges.pendingCount === 0 && rec.bills.pendingCount === 0 ? (
             <p className="text-sm text-amber-700">Nothing pending right now.</p>
           ) : (
             <ul className="space-y-2 text-sm text-amber-900">
               {pos.pendingReimbursements > 0 && <li className="flex justify-between gap-3"><Link className="hover:underline" to="/contributions">{pos.balances.filter((b) => b.companyOwes > 0).length} member reimbursement(s) pending</Link><span className="font-semibold tabular-nums">{formatCurrency(pos.pendingReimbursements)}</span></li>}
               {pendingProjects.length > 0 && <li className="flex justify-between gap-3"><Link className="hover:underline" to="/projects">{pendingProjects.length} project payment(s) pending</Link><span className="font-semibold tabular-nums">{formatCurrency(pos.pendingReceivables)}</span></li>}
               {pos.overdueInvoices.length > 0 && <li className="flex justify-between gap-3"><Link className="hover:underline" to="/invoices?status=Overdue">{pos.overdueInvoices.length} invoice(s) overdue</Link><span className="font-semibold tabular-nums">{formatCurrency(pos.overdueInvoices.reduce((a, s) => a + s.outstanding, 0))}</span></li>}
+              {rec.charges.pendingCount > 0 && <li className="flex justify-between gap-3"><Link className="hover:underline" to="/projects">{rec.charges.pendingCount} monthly charge(s) to collect</Link><span className="font-semibold tabular-nums">{formatCurrency(rec.charges.pendingAmount)}</span></li>}
+              {rec.bills.pendingCount > 0 && <li className="flex justify-between gap-3"><Link className="hover:underline" to="/bills">{rec.bills.pendingCount} monthly bill(s) to pay</Link><span className="font-semibold tabular-nums">{formatCurrency(rec.bills.pendingAmount)}</span></li>}
               {pos.membersOweCompany > 0 && <li className="flex justify-between gap-3"><Link className="hover:underline" to="/contributions?tab=advances">Member advances to be returned</Link><span className="font-semibold tabular-nums">{formatCurrency(pos.membersOweCompany)}</span></li>}
             </ul>
           )}
